@@ -1,0 +1,5 @@
+# Keep deck sources LF everywhere. decks.json is byte-compared by
+# tools/build-manifest.mjs --check, and the Markdown slide separators are
+# matched with line-ending-sensitive regexes in deck.html.
+* text=auto eol=lf
+*.pdf binary

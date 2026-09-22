@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Decks as Code</title>
+    <link rel="stylesheet" href="assets/theme.css" />
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--brand-bg);
+        color: var(--brand-text);
+        font-family: var(--brand-font);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .wrap {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 72px 24px 96px;
+      }
+
+      header h1 {
+        margin: 0 0 8px;
+        font-size: 2.4rem;
+        letter-spacing: -0.02em;
+      }
+
+      header p {
+        margin: 0;
+        color: var(--brand-muted);
+        font-size: 1.05rem;
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        margin-top: 40px;
+      }
+
+      .card {
+        display: flex;
+        flex-direction: column;
+        background: var(--brand-surface);
+        border: 1px solid var(--brand-border);
+        border-radius: 12px;
+        padding: 20px 22px;
+        transition: border-color 0.15s ease, transform 0.15s ease;
+      }
+
+      .card:hover {
+        border-color: var(--brand-accent);
+        transform: translateY(-2px);
+      }
+
+      .card h2 {
+        margin: 0 0 6px;
+        font-size: 1.15rem;
+      }
+
+      .card h2 a {
+        color: var(--brand-text);
+        text-decoration: none;
+      }
+
+      .card h2 a:hover {
+        color: var(--brand-accent);
+      }
+
+      .card p {
+        margin: 0 0 14px;
+        color: var(--brand-muted);
+        font-size: 0.92rem;
+        line-height: 1.45;
+        flex: 1;
+      }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0 0 14px;
+      }
+
+      .tag {
+        font-size: 0.72rem;
+        color: var(--brand-muted);
+        border: 1px solid var(--brand-border);
+        border-radius: 999px;
+        padding: 2px 9px;
+      }
+
+      .meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        font-size: 0.78rem;
+        color: var(--brand-muted);
+        border-top: 1px solid var(--brand-border);
+        padding-top: 12px;
+      }
+
+      .meta a {
+        color: var(--brand-accent);
+        text-decoration: none;
+      }
+
+      .meta a:hover {
+        text-decoration: underline;
+      }
+
+      .downloads {
+        white-space: nowrap;
+      }
+
+      .empty {
+        margin-top: 40px;
+        border: 1px dashed var(--brand-border);
+        border-radius: 12px;
+        padding: 32px;
+        color: var(--brand-muted);
+        line-height: 1.6;
+      }
+
+      code {
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 4px;
+        padding: 0.12em 0.4em;
+        font-size: 0.88em;
+      }
+      .import-cta {
+        margin: 36px 0 0;
+        padding-top: 22px;
+        border-top: 1px solid var(--brand-border);
+        color: var(--brand-muted);
+        font-size: 0.92rem;
+      }
+
+      .import-cta a {
+        color: var(--brand-accent);
+        text-decoration: none;
+        margin-left: 6px;
+      }
+
+      .import-cta a:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>Decks as Code</h1>
+        <p>Presentations that live in git, review as text, and publish themselves.</p>
+      </header>
+      <div id="content"></div>
+      <p class="import-cta">
+        Have a deck in PowerPoint already?
+        <a href="import.html">Import a .pptx &rarr;</a>
+      </p>
+    </div>
+
+    <script type="module">
+      const content = document.getElementById('content');
+
+      const escapeHtml = (value) =>
+        String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        })[ch]);
+
+      const formatDate = (value) => {
+        if (!value) return '';
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime())
+          ? String(value)
+          : parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+      };
+
+      function renderEmpty(message) {
+        content.innerHTML = `
+          <div class="empty">
+            <strong>${escapeHtml(message)}</strong><br />
+            Add a deck at <code>decks/&lt;slug&gt;/slides.md</code>, then regenerate the
+            listing with <code>node tools/build-manifest.mjs</code>.
+          </div>`;
+      }
+
+      let decks = [];
+      let loadFailed = false;
+
+      /*
+       * Opened by double-click rather than through a server. Browsers refuse
+       * fetch() from a file:// origin, so decks.json can never load here.
+       * Say so plainly instead of failing with "Failed to fetch".
+       */
+      function explainFileProtocol() {
+        content.innerHTML = `
+          <div class="empty" style="text-align:left">
+            <strong>This page needs a web server.</strong><br />
+            You opened it from your file system, and browsers block pages on
+            <code>file://</code> from reading <code>decks.json</code>.<br /><br />
+            To view a single deck, open <code>standalone/&lt;deck-name&gt;.html</code>
+            instead. Those are built as one self-contained file and are meant to be
+            double-clicked.<br /><br />
+            To run the whole site, from the <code>decks-as-code</code> folder:<br />
+            <code>node tools/build-site.mjs</code><br />
+            <code>python -m http.server 8000 --directory dist</code>
+          </div>`;
+      }
+
+      async function loadManifest() {
+        try {
+          const res = await fetch('decks.json', { cache: 'no-cache' });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const manifest = await res.json();
+          decks = Array.isArray(manifest.decks) ? manifest.decks : [];
+        } catch (error) {
+          loadFailed = true;
+          renderEmpty(`Could not load decks.json (${error.message}).`);
+        }
+      }
+
+      /**
+       * PDFs and standalone files are produced by tools/build-site.mjs and the
+       * publish workflow, so they exist in a build but usually not in a source
+       * checkout. Probe rather than advertise a link that 404s.
+       */
+      async function addDownloadLinks() {
+        await Promise.all(
+          decks.map(async (deck) => {
+            const slot = content.querySelector(`[data-slot="${CSS.escape(deck.slug)}"]`);
+            if (!slot) return;
+
+            const candidates = [
+              { url: `decks/${encodeURIComponent(deck.slug)}/deck.pdf`, label: 'PDF' },
+              { url: `standalone/${encodeURIComponent(deck.slug)}.html`, label: 'Single file' },
+            ];
+
+            const found = await Promise.all(
+              candidates.map(async (candidate) => {
+                try {
+                  const res = await fetch(candidate.url, { method: 'HEAD' });
+                  return res.ok ? candidate : null;
+                } catch {
+                  return null;
+                }
+              }),
+            );
+
+            slot.innerHTML = found
+              .filter(Boolean)
+              .map((c) => `<a href="${c.url}">${c.label}</a>`)
+              .join(' · ');
+          }),
+        );
+      }
+
+      function renderCards() {
+        content.innerHTML = `<div class="grid">${decks
+          .map((deck) => {
+            const href = `deck.html?d=${encodeURIComponent(deck.slug)}`;
+            const tags = (deck.tags ?? [])
+              .map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`)
+              .join('');
+            const byline = [formatDate(deck.date), deck.author].filter(Boolean).map(escapeHtml).join(' · ');
+            return `
+              <article class="card">
+                <h2><a href="${href}">${escapeHtml(deck.title || deck.slug)}</a></h2>
+                <p>${escapeHtml(deck.description || '')}</p>
+                ${tags ? `<div class="tags">${tags}</div>` : ''}
+                <div class="meta">
+                  <span>${byline}</span>
+                  <span class="downloads" data-slot="${escapeHtml(deck.slug)}"></span>
+                </div>
+              </article>`;
+          })
+          .join('')}</div>`;
+      }
+
+      if (window.location.protocol === 'file:') {
+        explainFileProtocol();
+      } else {
+        await loadManifest();
+        if (decks.length) {
+          renderCards();
+          await addDownloadLinks();
+        } else if (!loadFailed) {
+          renderEmpty('No decks found.');
+        }
+      }
+    </script>
+  </body>
+</html>

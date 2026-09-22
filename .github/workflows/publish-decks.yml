@@ -1,0 +1,115 @@
+# Builds every deck in decks/ into an offline site and publishes it to Pages.
+#
+# This repo is public specifically so Pages works, so the deploy runs on every
+# push to main rather than being opt-in. Pull requests build but do not deploy.
+#
+# Settings -> Pages -> Source must be set to "GitHub Actions".
+
+name: Publish decks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: publish-decks-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DECK_PORT: '8931'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Fails the build if someone added a deck but forgot to regenerate
+      # decks.json, which would silently leave it off the landing page.
+      - name: Verify deck manifest is current
+        run: node tools/build-manifest.mjs --check
+
+      # Vendors every dependency and emits dist/standalone/<slug>.html.
+      - name: Build offline site
+        run: node tools/build-site.mjs
+
+      # Serving dist/ (not the source) means the PDFs are rendered from the exact
+      # bytes we ship, so a broken vendored asset fails the build here.
+      - name: Serve built site
+        working-directory: dist
+        run: |
+          npx --yes http-server . -p "$DECK_PORT" --silent &
+          npx --yes wait-on -t 60000 "http://127.0.0.1:$DECK_PORT/index.html"
+
+      - name: Export a PDF per deck
+        working-directory: dist
+        run: |
+          slugs=$(node -e "console.log(require('./decks.json').decks.map(d => d.slug).join('\n'))")
+          if [ -z "$slugs" ]; then
+            echo "No decks found in decks.json"
+            exit 1
+          fi
+          while IFS= read -r slug; do
+            echo "::group::Exporting $slug"
+            npx --yes decktape reveal \
+              "http://127.0.0.1:$DECK_PORT/deck.html?d=$slug" \
+              "decks/$slug/deck.pdf" \
+              --load-pause 3000 \
+              --chrome-arg=--no-sandbox
+            echo "::endgroup::"
+          done <<< "$slugs"
+
+      - name: Upload standalone decks
+        uses: actions/upload-artifact@v4
+        with:
+          name: deck-standalone
+          path: dist/standalone/*.html
+          if-no-files-found: error
+
+      - name: Upload PDFs
+        uses: actions/upload-artifact@v4
+        with:
+          name: deck-pdfs
+          path: dist/decks/*/deck.pdf
+          if-no-files-found: error
+
+      - name: Summarize
+        working-directory: dist
+        run: |
+          {
+            echo "### Decks built"
+            echo
+            node -e "require('./decks.json').decks.forEach(d => console.log('- ' + (d.title || d.slug)))"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Configure Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

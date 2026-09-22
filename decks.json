@@ -1,0 +1,18 @@
+{
+  "generatedBy": "tools/build-manifest.mjs",
+  "count": 1,
+  "decks": [
+    {
+      "slug": "decks-as-code",
+      "title": "Decks as Code",
+      "description": "Replacing PPTX with plain-text, version-controlled presentations.",
+      "author": "Ivor Berry",
+      "date": "2026-08-24",
+      "tags": [
+        "proposal",
+        "tooling"
+      ],
+      "theme": "night"
+    }
+  ]
+}

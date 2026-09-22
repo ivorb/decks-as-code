@@ -1,0 +1,168 @@
+/*
+ * Shared brand theme for every deck in this folder.
+ * Change it here once and all decks restyle.
+ * Layered on top of the Reveal.js base theme loaded in deck.html.
+ */
+
+:root {
+  --brand-bg: #101423;
+  --brand-surface: #171c2e;
+  --brand-border: #2a3149;
+  --brand-accent: #4da3ff;
+  --brand-text: #e8ecf5;
+  --brand-muted: #9aa4bd;
+  --brand-font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.reveal {
+  --r-heading-font: var(--brand-font);
+  --r-main-font: var(--brand-font);
+  --r-link-color: var(--brand-accent);
+  --r-link-color-hover: var(--brand-accent);
+}
+
+.reveal-viewport {
+  background: var(--brand-bg);
+}
+
+.reveal h1,
+.reveal h2,
+.reveal h3 {
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * Slides converted from PowerPoint carry far more text than a hand-written
+ * deck, so the stock Reveal sizes overflow. These keep a dense slide on screen
+ * without shrinking a sparse one to nothing.
+ */
+.reveal h1 { font-size: 1.9em; }
+.reveal h2 { font-size: 1.5em; }
+.reveal h3 { font-size: 1.2em; }
+
+.reveal .slides section {
+  font-size: 0.92em;
+}
+
+/*
+ * Caps are in em so that they shrink along with the slide when the auto-fit in
+ * deck.html steps the font size down. Viewport units would ignore it entirely.
+ */
+.reveal .slides img {
+  max-height: 10em;
+  width: auto;
+  object-fit: contain;
+}
+
+/* A slide holding both prose and a screenshot needs the image to give way. */
+.reveal .slides section:has(p, ul, ol) img {
+  max-height: 7em;
+}
+
+/* Several images in one paragraph sat side by side on the original slide. */
+.reveal .slides p:has(img + img) img {
+  max-height: 5em;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0.25em;
+}
+
+.reveal table {
+  font-size: 0.8em;
+}
+
+.reveal table th {
+  color: var(--brand-accent);
+  border-bottom-color: var(--brand-border);
+}
+
+.reveal pre {
+  box-shadow: none;
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+}
+
+/*
+ * Applied by the auto-fit in deck.html when a slide is too tall to read at a
+ * sensible size: the original was usually a grid, so use the width.
+ */
+.reveal .slides section.is-two-column {
+  column-count: 2;
+  column-gap: 1.4em;
+  text-align: left;
+}
+
+.reveal .slides section.is-two-column h1,
+.reveal .slides section.is-two-column h2,
+.reveal .slides section.is-two-column h3 {
+  column-span: all;
+  text-align: center;
+}
+
+.reveal .slides section.is-two-column p,
+.reveal .slides section.is-two-column li {
+  break-inside: avoid;
+}
+
+.reveal pre code {
+  border-radius: 8px;
+  padding: 1em;
+  /*
+   * Sized in em, not vh: the auto-fit in deck.html shrinks the slide font to
+   * make dense slides fit, and this needs to come down with it.
+   */
+  max-height: 12em;
+}
+
+.reveal code:not(pre code) {
+  background: var(--brand-surface);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+}
+
+.reveal .mermaid {
+  background: transparent;
+}
+
+.reveal .mermaid svg {
+  max-height: 55vh;
+}
+
+/* Shown only until Mermaid has replaced the source text with an SVG,
+   so raw diagram markup never flashes on screen. */
+.reveal .mermaid:not([data-processed]) {
+  visibility: hidden;
+}
+
+.reveal .slide-number {
+  background: transparent;
+  color: var(--brand-muted);
+  font-size: 0.55em;
+}
+
+/* Small "all decks" affordance so a deck is never a dead end. */
+.deck-home-link {
+  position: fixed;
+  top: 12px;
+  left: 14px;
+  z-index: 40;
+  font-family: var(--brand-font);
+  font-size: 13px;
+  color: var(--brand-muted);
+  text-decoration: none;
+  opacity: 0.45;
+  transition: opacity 0.15s ease;
+}
+
+.deck-home-link:hover {
+  opacity: 1;
+  color: var(--brand-accent);
+}
+
+@media print {
+  .deck-home-link {
+    display: none;
+  }
+}

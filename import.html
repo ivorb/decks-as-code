@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import a PowerPoint · Decks as Code</title>
+    <link rel="stylesheet" href="assets/theme.css" />
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--brand-bg);
+        color: var(--brand-text);
+        font-family: var(--brand-font);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .wrap { max-width: 900px; margin: 0 auto; padding: 56px 24px 96px; }
+      .back { color: var(--brand-muted); text-decoration: none; font-size: 0.9rem; }
+      .back:hover { color: var(--brand-accent); }
+      header h1 { margin: 18px 0 8px; font-size: 2.1rem; letter-spacing: -0.02em; }
+      header p { margin: 0; color: var(--brand-muted); }
+
+      .drop {
+        margin-top: 32px;
+        padding: 44px 24px;
+        border: 2px dashed var(--brand-border);
+        border-radius: 14px;
+        text-align: center;
+        background: var(--brand-surface);
+        transition: border-color 0.15s ease, background 0.15s ease;
+        cursor: pointer;
+      }
+      .drop:hover, .drop.over { border-color: var(--brand-accent); background: rgba(255, 255, 255, 0.04); }
+      .drop strong { display: block; font-size: 1.1rem; margin-bottom: 6px; }
+      .drop span { color: var(--brand-muted); font-size: 0.92rem; }
+
+      .panel {
+        margin-top: 28px;
+        background: var(--brand-surface);
+        border: 1px solid var(--brand-border);
+        border-radius: 12px;
+        padding: 22px 24px;
+      }
+      .panel h2 { margin: 0 0 14px; font-size: 1.1rem; }
+
+      .fields { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+      label { display: block; font-size: 0.82rem; color: var(--brand-muted); margin-bottom: 5px; }
+      input[type='text'] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 7px;
+        border: 1px solid var(--brand-border);
+        background: var(--brand-bg);
+        color: var(--brand-text);
+        font: inherit;
+        font-size: 0.92rem;
+      }
+      input[type='text']:focus { outline: none; border-color: var(--brand-accent); }
+      .checkline { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 0.9rem; }
+
+      .stats { display: flex; flex-wrap: wrap; gap: 26px; margin: 4px 0 18px; }
+      .stat b { display: block; font-size: 1.7rem; line-height: 1.1; }
+      .stat span { color: var(--brand-muted); font-size: 0.82rem; }
+
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+      button {
+        font: inherit;
+        font-size: 0.92rem;
+        padding: 9px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--brand-border);
+        background: transparent;
+        color: var(--brand-text);
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+      button:hover:not(:disabled) { border-color: var(--brand-accent); background: rgba(255, 255, 255, 0.05); }
+      button.primary { background: var(--brand-accent); border-color: var(--brand-accent); color: #10131a; font-weight: 600; }
+      button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        height: 320px;
+        margin-top: 8px;
+        padding: 14px;
+        border-radius: 9px;
+        border: 1px solid var(--brand-border);
+        background: var(--brand-bg);
+        color: var(--brand-text);
+        font-family: var(--brand-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+        font-size: 0.82rem;
+        line-height: 1.55;
+        resize: vertical;
+      }
+
+      .warn { margin: 0; padding-left: 18px; color: var(--brand-muted); font-size: 0.88rem; line-height: 1.7; }
+      .status { margin-top: 14px; font-size: 0.92rem; min-height: 1.4em; }
+      .status.error { color: #ff8a80; }
+      .status.ok { color: #8ee6a0; }
+      .hidden { display: none; }
+
+      .note { color: var(--brand-muted); font-size: 0.86rem; line-height: 1.65; }
+      .note code {
+        background: rgba(255, 255, 255, 0.07);
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+
+      /* The preview drops a real Reveal deck over the page. */
+      #preview { position: fixed; inset: 0; z-index: 50; background: var(--brand-bg); }
+      #preview.hidden { display: none; }
+      #closePreview {
+        position: fixed;
+        top: 14px;
+        right: 16px;
+        z-index: 60;
+        background: rgba(0, 0, 0, 0.6);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" id="page">
+      <a class="back" href="index.html">&larr; All decks</a>
+
+      <header>
+        <h1>Import a PowerPoint</h1>
+        <p>
+          Turns a .pptx into deck Markdown. The file is read here in your browser and
+          never uploaded anywhere.
+        </p>
+      </header>
+
+      <div class="drop" id="drop">
+        <strong>Drop a .pptx here</strong>
+        <span>or click to choose one</span>
+        <input type="file" id="file" accept=".pptx" class="hidden" />
+      </div>
+
+      <div class="status" id="status"></div>
+
+      <section class="panel hidden" id="result">
+        <h2 id="resultTitle">Imported</h2>
+
+        <div class="stats" id="stats"></div>
+
+        <div class="fields">
+          <div>
+            <label for="slug">Folder name</label>
+            <input type="text" id="slug" spellcheck="false" />
+          </div>
+          <div>
+            <label for="title">Title</label>
+            <input type="text" id="title" />
+          </div>
+          <div>
+            <label for="author">Author</label>
+            <input type="text" id="author" />
+          </div>
+        </div>
+
+        <label class="checkline">
+          <input type="checkbox" id="withImages" checked />
+          Include images
+        </label>
+
+        <div class="actions">
+          <button class="primary" id="previewBtn">Preview</button>
+          <button id="zipBtn">Download folder (.zip)</button>
+          <button id="saveBtn" class="hidden">Save into decks/</button>
+        </div>
+
+        <p class="note" id="afterNote" style="margin-top: 18px">
+          Unzip into <code>decks/</code>, then run <code>node tools/build-manifest.mjs</code>
+          and commit. Expect to edit it down: slides written for narration usually carry
+          more text than reads well in a repo.
+        </p>
+
+        <h2 style="margin-top: 26px">slides.md</h2>
+        <textarea id="markdown" spellcheck="false" readonly></textarea>
+
+        <div id="warningsBox" class="hidden">
+          <h2 style="margin-top: 22px">Needs a look</h2>
+          <ul class="warn" id="warnings"></ul>
+        </div>
+      </section>
+
+      <section class="panel" id="unsupported" style="display: none">
+        <h2>This browser can't unzip in the page</h2>
+        <p class="note">
+          Importing needs <code>DecompressionStream('deflate-raw')</code>, which this
+          browser does not provide. Use a current Chrome, Edge, Firefox or Safari, or run
+          the command line version instead:
+      </section>
+
+      <section class="panel" id="needsServer" style="display: none">
+        <h2>This page needs a web server</h2>
+        <p class="note">
+          You opened it from your file system. Browsers refuse to load JavaScript
+          modules over <code>file://</code>, so the converter cannot start.<br /><br />
+          From the <code>decks-as-code</code> folder:<br />
+          <code>python -m http.server 8000 --directory dist</code><br />
+          then open <code>http://localhost:8000/import.html</code>.<br /><br />
+          Or skip the browser entirely:
+          <code>node tools/import-pptx.mjs talk.pptx --slug my-talk</code>
+        </p>
+      </section>
+    </div>
+
+    <script>
+      /*
+       * This guard is deliberately a classic script, not a module. On a file://
+       * URL the module below is blocked before it ever runs, so a check inside
+       * it would never execute.
+       */
+      if (window.location.protocol === 'file:') {
+        document.getElementById('needsServer').style.display = '';
+        document.getElementById('drop').style.display = 'none';
+      }
+    </script>
+
+    <div id="preview" class="hidden">
+      <div class="reveal">
+        <div class="slides">
+          <section data-separator="^\r?\n---\r?\n"
+                   data-separator-vertical="^\r?\n--\r?\n"
+                   data-separator-notes="^Note:"></section>
+        </div>
+      </div>
+    </div>
+    <button id="closePreview" class="hidden">Close preview</button>
+
+    <!-- tools/build-site.mjs rewrites this single line to point at ./vendor,
+         producing a build with no external network calls. Keep it on one line. -->
+    <script>window.DECK_ASSET_BASE = 'https://cdn.jsdelivr.net/npm';</script>
+
+    <script type="module">
+      import { listZipEntries, pptxToDeck, slugify, SLUG_PATTERN } from './tools/pptx-core.mjs';
+
+      const REVEAL_VERSION = '5.2.1';
+      const HLJS_VERSION = '11.12.0';
+      const BASE = window.DECK_ASSET_BASE;
+
+      const $ = (id) => document.getElementById(id);
+      const status = $('status');
+
+      if (typeof DecompressionStream === 'undefined') {
+        $('unsupported').style.display = '';
+        $('drop').style.display = 'none';
+      }
+
+      /** State for the file currently loaded. */
+      let current = null;
+
+      const setStatus = (text, kind = '') => {
+        status.textContent = text;
+        status.className = `status ${kind}`;
+      };
+
+      /* ------------------------------------------------------------ zip -- */
+
+      async function inflateRaw(bytes) {
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+      }
+
+      /** Inflate every part up front, so the shared core stays synchronous. */
+      async function readPptx(bytes) {
+        const files = new Map();
+        for (const entry of listZipEntries(bytes)) {
+          const raw = bytes.subarray(entry.dataStart, entry.dataStart + entry.compSize);
+          if (entry.method === 0) files.set(entry.name, raw);
+          else if (entry.method === 8) files.set(entry.name, await inflateRaw(raw));
+          else throw new Error(`Unsupported compression in ${entry.name}`);
+        }
+        return files;
+      }
+
+      const CRC_TABLE = (() => {
+        const table = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+          let c = i;
+          for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+          table[i] = c >>> 0;
+        }
+        return table;
+      })();
+
+      const crc32 = (bytes) => {
+        let c = 0xffffffff;
+        for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+        return (c ^ 0xffffffff) >>> 0;
+      };
+
+      /**
+       * Write a ZIP with everything stored uncompressed. The payload is mostly
+       * PNG and SVG that would not shrink much anyway, and this keeps the
+       * writer to a few dozen lines with no dependency.
+       */
+      function makeZip(entries) {
+        const encoder = new TextEncoder();
+        const chunks = [];
+        const central = [];
+        let offset = 0;
+
+        for (const { name, bytes } of entries) {
+          const nameBytes = encoder.encode(name);
+          const crc = crc32(bytes);
+
+          const local = new Uint8Array(30 + nameBytes.length);
+          const lv = new DataView(local.buffer);
+          lv.setUint32(0, 0x04034b50, true);
+          lv.setUint16(4, 20, true);
+          lv.setUint16(8, 0, true); // stored
+          lv.setUint32(14, crc, true);
+          lv.setUint32(18, bytes.length, true);
+          lv.setUint32(22, bytes.length, true);
+          lv.setUint16(26, nameBytes.length, true);
+          local.set(nameBytes, 30);
+
+          chunks.push(local, bytes);
+
+          const dir = new Uint8Array(46 + nameBytes.length);
+          const dv = new DataView(dir.buffer);
+          dv.setUint32(0, 0x02014b50, true);
+          dv.setUint16(4, 20, true);
+          dv.setUint16(6, 20, true);
+          dv.setUint16(10, 0, true);
+          dv.setUint32(16, crc, true);
+          dv.setUint32(20, bytes.length, true);
+          dv.setUint32(24, bytes.length, true);
+          dv.setUint16(28, nameBytes.length, true);
+          dv.setUint32(42, offset, true);
+          dir.set(nameBytes, 46);
+          central.push(dir);
+
+          offset += local.length + bytes.length;
+        }
+
+        const centralSize = central.reduce((n, c) => n + c.length, 0);
+        const end = new Uint8Array(22);
+        const ev = new DataView(end.buffer);
+        ev.setUint32(0, 0x06054b50, true);
+        ev.setUint16(8, entries.length, true);
+        ev.setUint16(10, entries.length, true);
+        ev.setUint32(12, centralSize, true);
+        ev.setUint32(16, offset, true);
+
+        return new Blob([...chunks, ...central, end], { type: 'application/zip' });
+      }
+
+      /* --------------------------------------------------------- import -- */
+
+      function deckFiles() {
+        const encoder = new TextEncoder();
+        const deck = {
+          ...current.result.deck,
+          title: $('title').value || current.result.deck.title,
+          author: $('author').value,
+        };
+        const files = [
+          { name: 'slides.md', bytes: encoder.encode(current.result.markdown) },
+          { name: 'deck.json', bytes: encoder.encode(`${JSON.stringify(deck, null, 2)}\n`) },
+        ];
+        for (const image of current.result.images) {
+          files.push({ name: `images/${image.name}`, bytes: current.files.get(image.zipPath) });
+        }
+        return files;
+      }
+
+      function render() {
+        const { result } = current;
+        $('resultTitle').textContent = current.name;
+        $('stats').innerHTML = [
+          [result.stats.slidesWritten, 'slides'],
+          [result.stats.notes, 'with notes'],
+          [result.stats.images, 'images'],
+          [result.warnings.length, 'to review'],
+        ].map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+
+        $('markdown').value = result.markdown;
+
+        if (result.warnings.length) {
+          $('warningsBox').classList.remove('hidden');
+          $('warnings').innerHTML = result.warnings
+            .map((w) => `<li>${w.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c])}</li>`)
+            .join('');
+        } else {
+          $('warningsBox').classList.add('hidden');
+        }
+
+        $('result').classList.remove('hidden');
+      }
+
+      function convert() {
+        current.result = pptxToDeck(current.files, {
+          slug: $('slug').value,
+          title: $('title').value || undefined,
+          author: $('author').value || undefined,
+          description: `Imported from ${current.name}.`,
+          images: $('withImages').checked,
+        });
+        render();
+      }
+
+      async function load(file) {
+        if (!file.name.toLowerCase().endsWith('.pptx')) {
+          setStatus('That is not a .pptx file.', 'error');
+          return;
+        }
+        setStatus(`Reading ${file.name}…`);
+        try {
+          const bytes = new Uint8Array(await file.arrayBuffer());
+          const files = await readPptx(bytes);
+          current = { name: file.name, files };
+
+          const guess = slugify(file.name.replace(/\.pptx$/i, ''));
+          $('slug').value = guess;
+          const probe = pptxToDeck(files, {
+            slug: guess,
+            description: `Imported from ${file.name}.`,
+          });
+          $('title').value = probe.deck.title;
+          $('author').value = probe.deck.author;
+          current.result = probe;
+
+          render();
+          setStatus(`Read ${probe.stats.slidesRead} slides from ${file.name}.`, 'ok');
+        } catch (error) {
+          current = null;
+          $('result').classList.add('hidden');
+          setStatus(error.message, 'error');
+        }
+      }
+
+      /* ---------------------------------------------------------- wiring -- */
+
+      const drop = $('drop');
+      drop.addEventListener('click', () => $('file').click());
+      $('file').addEventListener('change', (e) => e.target.files[0] && load(e.target.files[0]));
+
+      for (const type of ['dragenter', 'dragover']) {
+        drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.add('over'); });
+      }
+      for (const type of ['dragleave', 'drop']) {
+        drop.addEventListener(type, () => drop.classList.remove('over'));
+      }
+      drop.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file) load(file);
+      });
+
+      $('withImages').addEventListener('change', () => current && convert());
+      $('slug').addEventListener('input', () => {
+        const value = $('slug').value;
+        $('slug').style.borderColor = value && !SLUG_PATTERN.test(value) ? '#ff8a80' : '';
+      });
+
+      $('zipBtn').addEventListener('click', () => {
+        const slug = $('slug').value || 'imported-deck';
+        if (!SLUG_PATTERN.test(slug)) { setStatus('Folder name may use letters, digits, dot, dash and underscore only.', 'error'); return; }
+        const blob = makeZip(deckFiles().map((f) => ({ ...f, name: `${slug}/${f.name}` })));
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${slug}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatus(`Downloaded ${slug}.zip — unzip it into decks/.`, 'ok');
+      });
+
+      // Chromium can write the folder straight into the working copy.
+      if (window.showDirectoryPicker && window.isSecureContext) {
+        const saveBtn = $('saveBtn');
+        saveBtn.classList.remove('hidden');
+        saveBtn.addEventListener('click', async () => {
+          const slug = $('slug').value || 'imported-deck';
+          if (!SLUG_PATTERN.test(slug)) { setStatus('Folder name may use letters, digits, dot, dash and underscore only.', 'error'); return; }
+          try {
+            setStatus('Choose the decks/ folder…');
+            const root = await window.showDirectoryPicker({ mode: 'readwrite' });
+            const deckDir = await root.getDirectoryHandle(slug, { create: true });
+            for (const file of deckFiles()) {
+              const [head, tail] = file.name.includes('/') ? file.name.split('/') : [null, file.name];
+              const dir = head ? await deckDir.getDirectoryHandle(head, { create: true }) : deckDir;
+              const handle = await dir.getFileHandle(tail, { create: true });
+              const writable = await handle.createWritable();
+              await writable.write(file.bytes);
+              await writable.close();
+            }
+            setStatus(`Wrote ${slug}/ — now run node tools/build-manifest.mjs.`, 'ok');
+          } catch (error) {
+            if (error.name !== 'AbortError') setStatus(error.message, 'error');
+          }
+        });
+      }
+
+      /* --------------------------------------------------------- preview -- */
+
+      const loadCss = (href) => new Promise((resolve) => {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+        link.onload = link.onerror = () => resolve();
+        document.head.appendChild(link);
+      });
+
+      const loadScript = (src) => new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error(`Failed to load ${src}`));
+        document.head.appendChild(script);
+      });
+
+      let revealLoaded = false;
+
+      $('previewBtn').addEventListener('click', async () => {
+        if (!current) return;
+        setStatus('Building preview…');
+        try {
+          if (!revealLoaded) {
+            await loadCss(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/reveal.css`);
+            await loadCss(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/theme/${current.result.deck.theme || 'night'}.css`);
+            await loadCss(`${BASE}/highlight.js@${HLJS_VERSION}/styles/atom-one-dark.css`);
+            await loadCss('assets/theme.css');
+            await loadScript(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/reveal.js`);
+            await Promise.all([
+              loadScript(`${BASE}/reveal.js@${REVEAL_VERSION}/plugin/markdown/markdown.js`),
+              loadScript(`${BASE}/reveal.js@${REVEAL_VERSION}/plugin/highlight/highlight.js`),
+            ]);
+            revealLoaded = true;
+          }
+
+          // There is no deck folder yet, so point every image at its bytes.
+          const urls = new Map();
+          for (const image of current.result.images) {
+            const bytes = current.files.get(image.zipPath);
+            const ext = image.name.slice(image.name.lastIndexOf('.')).toLowerCase();
+            const mime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+              '.gif': 'image/gif', '.svg': 'image/svg+xml', '.webp': 'image/webp' }[ext] ?? 'application/octet-stream';
+            urls.set(`images/${image.name}`, URL.createObjectURL(new Blob([bytes], { type: mime })));
+          }
+          const markdown = current.result.markdown.replace(
+            /(!\[[^\]]*\]\()([^)\s]+)/g,
+            (m, head, ref) => head + (urls.get(ref) ?? ref),
+          );
+
+          const section = document.querySelector('#preview .slides section');
+          section.innerHTML = '';
+          section.setAttribute('data-markdown', '');
+          const template = document.createElement('script');
+          template.setAttribute('type', 'text/template');
+          template.textContent = markdown;
+          section.appendChild(template);
+
+          $('preview').classList.remove('hidden');
+          $('closePreview').classList.remove('hidden');
+
+          await Reveal.initialize({
+            plugins: [RevealMarkdown, RevealHighlight],
+            hash: false,
+            slideNumber: 'c/t',
+            transition: 'slide',
+            width: 1280,
+            height: 720,
+            margin: 0.06,
+            minScale: 0.2,
+            maxScale: 1.0,
+          });
+          Reveal.slide(0);
+          Reveal.layout();
+          // Imported slides often overflow; shrink each one until it fits.
+          const fit = () => {
+            const section = Reveal.getCurrentSlide();
+            if (!section) return;
+            section.style.fontSize = '';
+            let percent = 100;
+            while (section.scrollHeight > 720 && percent > 25) {
+              percent -= 5;
+              section.style.fontSize = `${percent}%`;
+            }
+          };
+          Reveal.on('slidechanged', fit);
+          Reveal.on('resize', fit);
+          fit();
+          setStatus('');
+        } catch (error) {
+          setStatus(`Preview failed: ${error.message}`, 'error');
+        }
+      });
+
+      $('closePreview').addEventListener('click', () => {
+        $('preview').classList.add('hidden');
+        $('closePreview').classList.add('hidden');
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !$('preview').classList.contains('hidden')) {
+          $('preview').classList.add('hidden');
+          $('closePreview').classList.add('hidden');
+        }
+      });
+    </script>
+  </body>
+</html>

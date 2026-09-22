@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deck</title>
+    <link rel="stylesheet" href="assets/theme.css" />
+  </head>
+  <body>
+    <a class="deck-home-link" href="index.html">&larr; All decks</a>
+
+    <div class="reveal">
+      <div class="slides">
+        <section data-separator="^\r?\n---\r?\n"
+                 data-separator-vertical="^\r?\n--\r?\n"
+                 data-separator-notes="^Note:"></section>
+      </div>
+    </div>
+
+    <!-- tools/build-site.mjs rewrites this single line to point at ./vendor,
+         producing a build with no external network calls. Keep it on one line. -->
+    <script>window.DECK_ASSET_BASE = 'https://cdn.jsdelivr.net/npm';</script>
+
+    <script>
+      /*
+       * Versions are pinned deliberately: a floating major (e.g. reveal.js@5)
+       * lets a minor release change rendering under a deck that was already
+       * reviewed and approved.
+       *
+       * These are classic scripts rather than ES modules on purpose. The global
+       * `Reveal.initialize()` API is what decktape drives to export PDFs, and
+       * plain <script> bundles can be vendored to a folder, while mermaid's ESM
+       * build pulls lazy chunks that cannot.
+       */
+      const REVEAL_VERSION = '5.2.1';
+      const MERMAID_VERSION = '11.17.1';
+      const HLJS_VERSION = '11.12.0';
+      const BASE = window.DECK_ASSET_BASE;
+
+      const SLUG_PATTERN = /^[a-z0-9][a-z0-9._-]*$/i;
+
+      /** Leave absolute, protocol-relative, root-relative and data URLs alone. */
+      const isAbsoluteRef = (ref) => /^(?:[a-z][a-z0-9+.-]*:|\/\/|\/|#)/i.test(ref);
+
+      const loadCss = (href) =>
+        new Promise((resolve) => {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = href;
+          // Never block the deck on a stylesheet that failed to load.
+          link.onload = link.onerror = () => resolve();
+          document.head.appendChild(link);
+        });
+
+      const loadScript = (src) =>
+        new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = src;
+          script.onload = resolve;
+          script.onerror = () => reject(new Error(`Failed to load ${src}`));
+          document.head.appendChild(script);
+        });
+
+      function fail(message, detail) {
+        document.querySelector('.slides').innerHTML = `
+          <section>
+            <h2>${message}</h2>
+            ${detail ? `<p style="font-size:0.6em;opacity:0.7">${detail}</p>` : ''}
+            <p><a href="index.html">Back to all decks</a></p>
+          </section>`;
+        if (window.Reveal) Reveal.initialize();
+      }
+
+      /*
+       * Opened by double-click rather than through a server. Browsers refuse
+       * fetch() from a file:// origin, so decks.json and slides.md can never
+       * load here. Say so plainly instead of failing with "Failed to fetch".
+       */
+      function explainFileProtocol() {
+        document.body.innerHTML = `
+          <main style="max-width:44rem;margin:12vh auto;padding:0 1.5rem;
+                       font:16px/1.6 system-ui,sans-serif;color:#eee">
+            <h1 style="margin:0 0 .5rem">This page needs a web server</h1>
+            <p>You opened it from your file system. Browsers block pages on
+               <code>file://</code> from reading the deck's
+               <code>slides.md</code>, so it cannot render this way.</p>
+            <h2 style="font-size:1.1rem;margin:2rem 0 .5rem">To just view a deck</h2>
+            <p>Open <code>standalone/&lt;deck-name&gt;.html</code> instead. Those are
+               built as one self-contained file and are meant to be double-clicked.</p>
+            <h2 style="font-size:1.1rem;margin:2rem 0 .5rem">To run the whole site</h2>
+            <p>From the <code>decks-as-code</code> folder:</p>
+            <pre style="background:#1b1b1b;padding:.75rem 1rem;border-radius:6px;
+                        overflow:auto"><code>node tools/build-site.mjs
+python -m http.server 8000 --directory dist</code></pre>
+            <p>Then open <a style="color:#7cc4ff" href="http://localhost:8000/">http://localhost:8000/</a>.</p>
+          </main>`;
+      }
+
+      async function boot() {
+        if (window.location.protocol === 'file:') {
+          explainFileProtocol();
+          return;
+        }
+
+        const slug = new URLSearchParams(window.location.search).get('d');
+
+        if (!slug) {
+          window.location.replace('index.html');
+          return;
+        }
+
+        if (!SLUG_PATTERN.test(slug)) {
+          await loadStyles('night');
+          await loadScripts(false);
+          fail('Invalid deck name', 'Deck names may only contain letters, numbers, dots, dashes and underscores.');
+          return;
+        }
+
+        const base = `decks/${encodeURIComponent(slug)}`;
+        const rebase = (ref) => (isAbsoluteRef(ref) ? ref : `${base}/${ref}`);
+
+        // deck.json is optional metadata; a deck only truly needs slides.md.
+        let meta = {};
+        try {
+          const res = await fetch(`${base}/deck.json`, { cache: 'no-cache' });
+          if (res.ok) meta = await res.json();
+        } catch {
+          /* fall back to defaults below */
+        }
+
+        document.title = meta.title || slug;
+        await loadStyles(meta.theme || 'night');
+
+        // Confirm slides.md exists before handing off to the Markdown plugin,
+        // which fails silently on a 404 and leaves a blank deck.
+        const slidesUrl = `${base}/slides.md`;
+        let slides = null;
+        try {
+          const res = await fetch(slidesUrl, { cache: 'no-cache' });
+          if (res.ok) slides = await res.text();
+        } catch {
+          /* handled below */
+        }
+
+        const usesMermaid = Boolean(slides && slides.includes('class="mermaid"'));
+        await loadScripts(usesMermaid);
+
+        if (slides === null) {
+          fail('Deck not found', `No slides at <code>${slidesUrl}</code>`);
+          return;
+        }
+
+        /*
+         * Image paths in slides.md are relative to the deck's own folder, but a
+         * browser resolves them against deck.html. Rewrite them in the Markdown
+         * before Reveal renders it, so no request is ever made to a wrong URL.
+         */
+        const rebased = slides
+          .replace(/(!\[[^\]]*\]\()([^)\s]+)/g, (m, head, ref) => head + rebase(ref))
+          .replace(/(\bsrc=")([^"]+)/g, (m, head, ref) => head + rebase(ref));
+
+        // Hand Reveal the Markdown we already fetched instead of a URL, so the
+        // plugin does not download slides.md a second time.
+        const section = document.querySelector('.slides section');
+        section.setAttribute('data-markdown', '');
+        const template = document.createElement('script');
+        template.setAttribute('type', 'text/template');
+        template.textContent = rebased;
+        section.appendChild(template);
+
+        await Reveal.initialize({
+          plugins: [RevealMarkdown, RevealHighlight, RevealNotes],
+          hash: true,
+          slideNumber: 'c/t',
+          transition: 'slide',
+          pdfSeparateFragments: false,
+          /*
+           * Reveal defaults to a 960x700 slide scaled up to 2x, which on a wide
+           * monitor blows the text up to poster size. A 1280x720 slide capped at
+           * 1:1 stays legible without ever overshooting.
+           */
+          width: 1280,
+          height: 720,
+          margin: 0.06,
+          minScale: 0.2,
+          maxScale: 1.0,
+        });
+
+        // Slide sizing depends on image dimensions, so settle them before laying out.
+        const images = [...document.querySelectorAll('.slides img')];
+        if (images.length) {
+          await Promise.all(images.map((img) => (img.complete
+            ? null
+            : new Promise((resolve) => { img.onload = img.onerror = resolve; }))));
+          Reveal.layout();
+        }
+
+        if (usesMermaid) {
+          // startOnLoad must stay false: the slides are injected by the Markdown
+          // plugin after DOMContentLoaded, so we run Mermaid ourselves afterwards.
+          mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+          const diagrams = document.querySelectorAll('.mermaid');
+          if (diagrams.length) {
+            await mermaid.run({ nodes: diagrams });
+            Reveal.layout();
+          }
+        }
+
+        Reveal.on('slidechanged', fitCurrentSlide);
+        Reveal.on('resize', fitCurrentSlide);
+        fitCurrentSlide();
+
+        // decktape waits for this before capturing, so it never races the
+        // Markdown and Mermaid rendering above.
+        window.DECK_READY = true;
+      }
+
+      /*
+       * Slides converted from PowerPoint routinely hold more than fits a 720
+       * unit canvas, and Reveal does not shrink content to fit. Step the slide's
+       * font size down until it fits, so a dense slide stays whole instead of
+       * running off the bottom. Only the visible slide can be measured, since
+       * Reveal keeps the others display:none.
+       */
+      function fitCurrentSlide() {
+        const section = window.Reveal && Reveal.getCurrentSlide();
+        if (!section) return;
+        const limit = Reveal.getConfig().height;
+
+        const shrinkTo = (floor) => {
+          let percent = 100;
+          section.style.fontSize = '';
+          while (section.scrollHeight > limit && percent > floor) {
+            percent -= 5;
+            section.style.fontSize = `${percent}%`;
+          }
+        };
+
+        section.classList.remove('is-two-column');
+        shrinkTo(60);
+
+        /*
+         * Still too tall at a readable size. These are usually a grid of icons
+         * and captions that Markdown flattened into one tall column, so spend
+         * the empty width before shrinking the text any further.
+         */
+        if (section.scrollHeight > limit) {
+          section.classList.add('is-two-column');
+          shrinkTo(30);
+          if (section.scrollHeight > limit) {
+            section.classList.remove('is-two-column');
+            shrinkTo(30);
+          }
+        }
+      }
+
+      function loadStyles(theme) {
+        return Promise.all([
+          loadCss(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/reveal.css`),
+          loadCss(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/theme/${theme}.css`),
+          loadCss(`${BASE}/highlight.js@${HLJS_VERSION}/styles/atom-one-dark.css`),
+        ]).then(() => {
+          // Re-append our overrides so they win over the theme just loaded.
+          document.head.appendChild(document.querySelector('link[href="assets/theme.css"]'));
+        });
+      }
+
+      async function loadScripts(withMermaid) {
+        await loadScript(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/reveal.js`);
+        await Promise.all([
+          loadScript(`${BASE}/reveal.js@${REVEAL_VERSION}/plugin/markdown/markdown.js`),
+          loadScript(`${BASE}/reveal.js@${REVEAL_VERSION}/plugin/highlight/highlight.js`),
+          loadScript(`${BASE}/reveal.js@${REVEAL_VERSION}/plugin/notes/notes.js`),
+        ]);
+        if (withMermaid) {
+          await loadScript(`${BASE}/mermaid@${MERMAID_VERSION}/dist/mermaid.min.js`);
+        }
+      }
+
+      boot().catch((error) => fail('Could not load this deck', error.message));
+    </script>
+  </body>
+</html>
