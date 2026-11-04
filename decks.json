@@ -10,7 +10,12 @@
       "date": "2026-11-04",
       "tags": [],
       "theme": "white",
-      "format": "html"
+      "format": "html",
+      "languages": [
+        "de",
+        "es",
+        "fr"
+      ]
     },
     {
       "slug": "decks-as-code",

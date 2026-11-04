@@ -114,7 +114,62 @@
     if (reveal) fitSlide(reveal.getCurrentSlide());
   }
 
+  function languageName(code) {
+    try {
+      var label = new Intl.DisplayNames([code], { type: 'language' }).of(code);
+      return label ? label.charAt(0).toUpperCase() + label.slice(1) : code;
+    } catch (e) {
+      return code;
+    }
+  }
+
+  /**
+   * A language <select> in the corner of the deck. Hidden when there is nothing
+   * to choose. Options are named in their own language ("Français"), the source
+   * language comes first, and the choice is mirrored into ?lang= so the address
+   * can be shared.
+   *
+   *   source     the deck's own language tag
+   *   languages  translation tags that have a table
+   *   load       async (tag) => table
+   *   reveal     the Reveal instance, to re-fit text after a swap
+   */
+  function mountPicker(o) {
+    var langs = (o.languages || []).filter(function (l) { return l !== o.source; });
+    if (!langs.length) return null;
+
+    var box = document.createElement('div');
+    box.className = 'deck-lang';
+    var select = document.createElement('select');
+    select.setAttribute('aria-label', 'Language');
+    [o.source].concat(langs).forEach(function (tag) {
+      var opt = document.createElement('option');
+      opt.value = tag;
+      opt.textContent = languageName(tag === o.source ? tag.split('-')[0] : tag);
+      select.appendChild(opt);
+    });
+    box.appendChild(select);
+    document.body.appendChild(box);
+
+    var chosen = langFromUrl();
+    select.value = chosen && langs.indexOf(chosen) >= 0 ? chosen : o.source;
+
+    select.addEventListener('change', async function () {
+      var tag = select.value;
+      var table = null;
+      if (tag !== o.source) {
+        try { table = await o.load(tag); } catch (e) { table = null; }
+      }
+      apply(table, tag);
+      if (o.reveal) refit(o.reveal);
+      var url = new URL(window.location.href);
+      if (tag === o.source) url.searchParams.delete('lang'); else url.searchParams.set('lang', tag);
+      window.history.replaceState(null, '', url);
+    });
+    return select;
+  }
+
   window.DeckI18n = {
-    apply: apply, safeFragment: safeFragment, langFromUrl: langFromUrl, fitSlide: fitSlide, autoFit: autoFit, refit: refit,
+    apply: apply, safeFragment: safeFragment, langFromUrl: langFromUrl, fitSlide: fitSlide, autoFit: autoFit, refit: refit, mountPicker: mountPicker,
   };
 })();
