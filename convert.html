@@ -116,7 +116,22 @@
 
       #preview { position: fixed; inset: 0; z-index: 50; background: var(--brand-bg); }
       #preview.hidden { display: none; }
+      #preview iframe { width: 100%; height: 100%; border: 0; display: block; }
       #closePreview { position: fixed; top: 14px; right: 16px; z-index: 60; background: rgba(0, 0, 0, 0.6); }
+
+      .saved { list-style: none; margin: 0; padding: 0; }
+      .saved li {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 0;
+        border-top: 1px solid var(--brand-border);
+      }
+      .saved li:first-child { border-top: 0; padding-top: 0; }
+      .saved .what { flex: 1; min-width: 0; }
+      .saved .what b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .saved .what span { color: var(--brand-muted); font-size: 0.82rem; }
+      .saved button { padding: 6px 12px; font-size: 0.85rem; }
     </style>
   </head>
   <body>
@@ -140,6 +155,14 @@
 
       <div class="status" id="status"></div>
 
+      <section class="panel hidden" id="saved">
+        <h2>Saved in this session</h2>
+        <ul class="saved" id="savedList"></ul>
+        <p class="note" style="margin-top: 14px">
+          Kept in this browser tab only. They are gone when you close the tab, so
+          download anything you want to keep.
+        </p>
+      </section>
       <section class="panel hidden" id="result">
         <h2 id="resultTitle">Converted</h2>
         <div class="stats" id="stats"></div>
@@ -161,6 +184,7 @@
 
         <div class="actions">
           <button class="primary" id="previewBtn">Preview slides</button>
+          <button id="saveBtn" class="hidden">Save in this session</button>
           <button id="standaloneBtn">Download single HTML file</button>
           <button id="zipBtn">Download deck folder (.zip)</button>
         </div>
@@ -210,7 +234,7 @@
     </script>
 
     <div id="preview" class="hidden">
-      <div class="reveal"><div class="slides"></div></div>
+      <iframe id="previewFrame" title="Slide preview"></iframe>
     </div>
     <button id="closePreview" class="hidden">Close preview</button>
 
@@ -292,28 +316,139 @@
         render();
       }
 
-      async function load(file) {
-        if (!file.name.toLowerCase().endsWith('.pptx')) {
-          setStatus('That is not a .pptx file.', 'error');
-          return;
-        }
-        setStatus(`Reading ${file.name}…`);
+      /** Convert a .pptx already in memory. `fields` restores the form of a saved deck. */
+      async function loadBytes(name, bytes, fields = null) {
+        setStatus(`Reading ${name}…`);
         try {
-          const files = await readPptx(new Uint8Array(await file.arrayBuffer()));
-          current = { name: file.name, files };
-          const guess = slugify(file.name.replace(/\.pptx$/i, ''));
+          const files = await readPptx(bytes);
+          current = { name, files, bytes };
+          const guess = fields?.slug || slugify(name.replace(/\.pptx$/i, ''));
           $('slug').value = guess;
-          const probe = pptxToHtml(files, { slug: guess, description: `Converted from ${file.name}.` });
-          $('title').value = probe.deck.title;
-          $('author').value = probe.deck.author;
+          const probe = pptxToHtml(files, { slug: guess, description: `Converted from ${name}.` });
+          $('title').value = fields?.title || probe.deck.title;
+          $('author').value = fields?.author ?? probe.deck.author;
           current.result = probe;
+          $('saveBtn').textContent = 'Save in this session';
           render();
-          setStatus(`Converted ${probe.stats.slides} slides from ${file.name}.`, 'ok');
+          setStatus(`Converted ${probe.stats.slides} slides from ${name}.`, 'ok');
         } catch (error) {
           current = null;
           $('result').classList.add('hidden');
           setStatus(error.message, 'error');
         }
+      }
+
+      async function load(file) {
+        if (!file.name.toLowerCase().endsWith('.pptx')) {
+          setStatus('That is not a .pptx file.', 'error');
+          return;
+        }
+        await loadBytes(file.name, new Uint8Array(await file.arrayBuffer()));
+      }
+
+      /* ------------------------------------------- saved in this session -- */
+
+      /*
+       * Decks are kept as the original .pptx in IndexedDB (large files do not fit
+       * in sessionStorage) and converted again when opened, which takes well under
+       * a second. Each entry is stamped with a per-tab id from sessionStorage, and
+       * any entry from another tab session is deleted on load, so nothing outlives
+       * the tab it was saved in.
+       */
+      const DB_NAME = 'decks-session';
+      const STORE = 'decks';
+      const hasStorage = typeof indexedDB !== 'undefined';
+      let tabId = sessionStorage.getItem('convertTabId');
+      if (!tabId) {
+        tabId = crypto.randomUUID();
+        sessionStorage.setItem('convertTabId', tabId);
+      }
+
+      const openDb = () => new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = () => request.result.createObjectStore(STORE, { keyPath: 'id' });
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      async function dbRun(mode, action) {
+        const db = await openDb();
+        try {
+          return await new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE, mode);
+            const request = action(transaction.objectStore(STORE));
+            transaction.oncomplete = () => resolve(request?.result);
+            transaction.onerror = () => reject(transaction.error);
+            transaction.onabort = () => reject(transaction.error);
+          });
+        } finally {
+          db.close();
+        }
+      }
+
+      async function listSaved() {
+        const all = (await dbRun('readonly', (s) => s.getAll())) ?? [];
+        const stale = all.filter((d) => d.tabId !== tabId);
+        for (const d of stale) await dbRun('readwrite', (s) => s.delete(d.id));
+        return all.filter((d) => d.tabId === tabId).sort((a, b) => b.savedAt - a.savedAt);
+      }
+
+      async function renderSaved() {
+        if (!hasStorage) return;
+        let decks = [];
+        try { decks = await listSaved(); } catch { /* storage blocked: no list */ }
+        $('saved').classList.toggle('hidden', decks.length === 0);
+        $('savedList').innerHTML = decks.map((d) => `
+          <li data-id="${escapeHtml(d.id)}">
+            <div class="what"><b>${escapeHtml(d.title || d.name)}</b>
+              <span>${escapeHtml(d.name)} · ${d.slides} slides · ${(d.bytes.byteLength / 1048576).toFixed(1)} MB</span></div>
+            <button data-act="open">Open</button>
+            <button data-act="remove">Remove</button>
+          </li>`).join('');
+      }
+
+      $('saveBtn').addEventListener('click', async () => {
+        if (!current) return;
+        try {
+          await dbRun('readwrite', (s) => s.put({
+            id: `${current.name}:${current.bytes.byteLength}`,
+            tabId,
+            name: current.name,
+            title: $('title').value,
+            slug: $('slug').value,
+            author: $('author').value,
+            slides: current.result.stats.slides,
+            bytes: current.bytes.buffer.slice(current.bytes.byteOffset, current.bytes.byteOffset + current.bytes.byteLength),
+            savedAt: Date.now(),
+          }));
+          $('saveBtn').textContent = 'Saved ✓';
+          setStatus('Saved in this session. It stays until you close this tab.', 'ok');
+          await renderSaved();
+        } catch (error) {
+          setStatus(`Could not save: ${error?.message || 'browser storage is full or blocked'}.`, 'error');
+        }
+      });
+
+      $('savedList').addEventListener('click', async (event) => {
+        const button = event.target.closest('button[data-act]');
+        if (!button) return;
+        const id = button.closest('li').dataset.id;
+        if (button.dataset.act === 'remove') {
+          await dbRun('readwrite', (s) => s.delete(id));
+          await renderSaved();
+          return;
+        }
+        const record = await dbRun('readonly', (s) => s.get(id));
+        if (record) {
+          await loadBytes(record.name, new Uint8Array(record.bytes), record);
+          $('saveBtn').textContent = 'Saved ✓';
+          $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+
+      if (hasStorage) {
+        $('saveBtn').classList.remove('hidden');
+        renderSaved();
       }
 
       /* ------------------------------------------------------- downloads -- */
@@ -421,38 +556,41 @@
 
       /* --------------------------------------------------------- preview -- */
 
-      const loadCss = (href) => new Promise((resolve) => {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = href;
-        link.onload = link.onerror = () => resolve();
-        document.head.appendChild(link);
-      });
-      const loadScript = (src) => new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = resolve;
-        script.onerror = () => reject(new Error(`Failed to load ${src}`));
-        document.head.appendChild(script);
-      });
-
-      let revealReady = false;
+      /*
+       * The preview runs in its own iframe. Reveal's theme sets colors and sizes on
+       * body and html; loaded into this page it restyled the page itself and left
+       * the text black after the preview closed. A separate document keeps the two
+       * apart and gives every preview a fresh Reveal.
+       */
       let previewUrls = [];
+
+      function previewDocument(html, deck) {
+        const canvas = deck.canvas;
+        const config = {
+          hash: false, slideNumber: 'c/t', transition: 'none', width: canvas.width, height: canvas.height,
+          margin: 0, minScale: 0.2, maxScale: 3, center: false,
+        };
+        const sheets = [
+          `${BASE}/reveal.js@${REVEAL_VERSION}/dist/reveal.css`,
+          `${BASE}/reveal.js@${REVEAL_VERSION}/dist/theme/${deck.theme || 'white'}.css`,
+          'assets/theme.css',
+          'assets/pptx-slide.css',
+        ];
+        return `<!doctype html><html lang="${deck.lang || 'en'}"><head><meta charset="utf-8">
+${sheets.map((href) => `<link rel="stylesheet" href="${href}">`).join('\n')}
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#111}</style></head>
+<body><div class="reveal"><div class="slides">${html}</div></div>
+<script src="${BASE}/reveal.js@${REVEAL_VERSION}/dist/reveal.js"><\/script>
+<script src="assets/deck-i18n.js"><\/script>
+<script>Reveal.initialize(${JSON.stringify(config)}).then(function () { DeckI18n.autoFit(Reveal); });<\/script>
+</body></html>`;
+      }
 
       $('previewBtn').addEventListener('click', async () => {
         if (!current) return;
         setStatus('Building preview…');
         try {
           const { deck } = deckFiles();
-          if (!window.Reveal) {
-            await loadCss(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/reveal.css`);
-            await loadCss(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/theme/${deck.theme || 'white'}.css`);
-            await loadCss('assets/theme.css');
-            await loadCss('assets/pptx-slide.css');
-            await loadScript(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/reveal.js`);
-            await loadScript('assets/deck-i18n.js');
-          }
-
           previewUrls.forEach((u) => URL.revokeObjectURL(u));
           previewUrls = [];
           const html = await rewriteImages(current.result.html, (image) => {
@@ -460,19 +598,11 @@
             previewUrls.push(url);
             return url;
           });
-          document.querySelector('#preview .slides').innerHTML = html;
+          const frame = $('previewFrame');
+          frame.srcdoc = previewDocument(html, deck);
           $('preview').classList.remove('hidden');
           $('closePreview').classList.remove('hidden');
-
-          const canvas = deck.canvas;
-          const config = {
-            hash: false, slideNumber: 'c/t', transition: 'none', width: canvas.width, height: canvas.height,
-            margin: 0, minScale: 0.2, maxScale: 3, center: false,
-          };
-          if (revealReady) { Reveal.configure(config); Reveal.sync(); } else { await Reveal.initialize(config); DeckI18n.autoFit(Reveal); revealReady = true; }
-          Reveal.slide(0);
-          Reveal.layout();
-          DeckI18n.refit(Reveal);
+          frame.addEventListener('load', () => frame.contentWindow?.focus(), { once: true });
           setStatus('');
         } catch (error) {
           setStatus(`Preview failed: ${error.message}`, 'error');
@@ -482,6 +612,9 @@
       const closePreview = () => {
         $('preview').classList.add('hidden');
         $('closePreview').classList.add('hidden');
+        $('previewFrame').removeAttribute('srcdoc');
+        previewUrls.forEach((u) => URL.revokeObjectURL(u));
+        previewUrls = [];
       };
       $('closePreview').addEventListener('click', closePreview);
       document.addEventListener('keydown', (e) => {
