@@ -344,6 +344,7 @@ async function main() {
   await copyInto('assets/theme.css');
   await copyInto('assets/pptx-slide.css');
   await copyInto('assets/deck-i18n.js');
+  await copyInto('assets/saved-decks.mjs');
   const deckHtml = await readFile(join(ROOT, 'deck.html'), 'utf8');
   const rewritten = deckHtml.replace(
     /window\.DECK_ASSET_BASE = '[^']*';/,

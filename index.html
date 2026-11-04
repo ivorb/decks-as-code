@@ -156,6 +156,17 @@
         padding: 0.12em 0.4em;
         font-size: 0.88em;
       }
+      .hidden { display: none; }
+
+      .section-title {
+        margin: 48px 0 0;
+        font-size: 1.1rem;
+        color: var(--brand-muted);
+        font-weight: 600;
+      }
+
+      #mine .grid { margin-top: 16px; }
+
       .import-cta {
         margin: 36px 0 0;
         padding-top: 22px;
@@ -183,6 +194,7 @@
         <a class="convert-btn" href="convert.html">Convert a new deck</a>
       </header>
       <div id="content"></div>
+      <section id="mine" class="hidden"></section>
       <p class="import-cta">
         Prefer Markdown slides?
         <a href="import.html">Import a .pptx as Markdown &rarr;</a>
@@ -190,7 +202,10 @@
     </div>
 
     <script type="module">
+      import { listSaved, removeSaved } from './assets/saved-decks.mjs';
+
       const content = document.getElementById('content');
+      const mine = document.getElementById('mine');
 
       const escapeHtml = (value) =>
         String(value ?? '').replace(/[&<>"']/g, (ch) => ({
@@ -306,6 +321,34 @@
           .join('')}</div>`;
       }
 
+      /** Decks converted in this browser: kept locally, so they get their own section. */
+      async function renderMine() {
+        const decks = await listSaved();
+        mine.classList.toggle('hidden', decks.length === 0);
+        mine.innerHTML = decks.length ? `
+          <h2 class="section-title">Your decks</h2>
+          <div class="grid">${decks.map((d) => `
+            <article class="card" data-id="${escapeHtml(d.id)}">
+              <h2><a href="convert.html?open=${encodeURIComponent(d.id)}">${escapeHtml(d.title || d.name)}</a></h2>
+              <p>${escapeHtml(d.name)} · ${d.slides} slides</p>
+              <div class="meta">
+                <span>${escapeHtml(formatDate(d.savedAt))}</span>
+                <span class="downloads">
+                  <a href="convert.html?open=${encodeURIComponent(d.id)}">Open</a> ·
+                  <a href="#" data-remove="${escapeHtml(d.id)}">Remove</a>
+                </span>
+              </div>
+            </article>`).join('')}</div>` : '';
+      }
+
+      mine.addEventListener('click', async (event) => {
+        const link = event.target.closest('[data-remove]');
+        if (!link) return;
+        event.preventDefault();
+        await removeSaved(link.dataset.remove);
+        await renderMine();
+      });
+
       if (window.location.protocol === 'file:') {
         explainFileProtocol();
       } else {
@@ -316,6 +359,7 @@
         } else if (!loadFailed) {
           renderEmpty('No decks found.');
         }
+        await renderMine();
       }
     </script>
   </body>
