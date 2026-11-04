@@ -33,6 +33,31 @@
         font-size: 1.05rem;
       }
 
+      header.top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .convert-btn {
+        display: inline-block;
+        padding: 10px 18px;
+        border-radius: 8px;
+        background: var(--brand-accent);
+        color: #10131a;
+        font-weight: 600;
+        font-size: 0.95rem;
+        text-decoration: none;
+        white-space: nowrap;
+        margin-top: 6px;
+      }
+
+      .convert-btn:hover {
+        filter: brightness(1.1);
+      }
+
       .grid {
         display: grid;
         gap: 16px;
@@ -150,14 +175,16 @@
   </head>
   <body>
     <div class="wrap">
-      <header>
-        <h1>Decks as Code</h1>
-        <p>Presentations that live in git, review as text, and publish themselves.</p>
+      <header class="top">
+        <div>
+          <h1>Decks as Code</h1>
+          <p>Presentations that live in git, review as text, and publish themselves.</p>
+        </div>
+        <a class="convert-btn" href="convert.html">Convert a new deck</a>
       </header>
       <div id="content"></div>
       <p class="import-cta">
-        Have a deck in PowerPoint already?
-        <a href="convert.html">Convert a .pptx to HTML &rarr;</a> &nbsp;·&nbsp;
+        Prefer Markdown slides?
         <a href="import.html">Import a .pptx as Markdown &rarr;</a>
       </p>
     </div>
