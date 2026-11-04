@@ -6,6 +6,8 @@
 // Providers throw ProviderError; `fatal` means retrying or continuing is pointless
 // (bad credentials, unknown model, ...), so the CLI aborts instead of skipping strings.
 
+import { spawn } from 'node:child_process';
+
 export class ProviderError extends Error {
   constructor(message, { status, fatal = false } = {}) {
     super(message);
@@ -15,10 +17,11 @@ export class ProviderError extends Error {
   }
 }
 
-export const PROVIDERS = ['openai', 'mock'];
+export const PROVIDERS = ['copilot', 'openai', 'mock'];
 
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
 const REQUEST_TIMEOUT_MS = 120_000;
+const COPILOT_TIMEOUT_MS = 300_000;
 const MAX_RATE_LIMIT_RETRIES = 5;
 const MAX_TRANSIENT_RETRIES = 3;
 const MAX_WAIT_MS = 120_000;
@@ -27,6 +30,8 @@ const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function createProvider(name, options = {}) {
   switch (name) {
+    case 'copilot':
+      return createCopilotProvider(options);
     case 'openai':
       return createOpenAICompatibleProvider(options);
     case 'mock':
@@ -34,6 +39,76 @@ export function createProvider(name, options = {}) {
     default:
       throw new Error(`Unknown provider "${name}". Available: ${PROVIDERS.join(', ')}`);
   }
+}
+
+// Uses the GitHub Copilot CLI in non-interactive mode, so translation runs on the
+// models included with your Copilot subscription: no API key, nothing to configure
+// beyond being signed in to `copilot`. Tools, MCP servers and custom instructions are
+// all turned off, so the model can only answer; it cannot touch files or the shell.
+// The prompt goes in on stdin (no command-line length limit, nothing in the process list).
+//   --model <name>          optional; otherwise the CLI's default model
+//   LLM_REASONING_EFFORT    low (default) | medium | high ...
+//   COPILOT_BIN             path to the copilot executable if it is not on PATH
+export function flattenMessages(messages) {
+  const parts = messages.map(({ role, content }) => `[${role}]\n${content}`);
+  parts.push('Reply with only the JSON object, no commentary.');
+  return parts.join('\n\n');
+}
+
+function createCopilotProvider(options) {
+  const env = options.env ?? process.env;
+  const spawnImpl = options.spawn ?? spawn;
+  const command = env.COPILOT_BIN || 'copilot';
+  const model = options.model || env.LLM_MODEL || '';
+  const effort = env.LLM_REASONING_EFFORT || 'low';
+
+  const args = [
+    '-s', '--no-ask-user', '--no-custom-instructions', '--disable-builtin-mcps', '--no-color',
+    '--available-tools', '', '--reasoning-effort', effort,
+  ];
+  if (model) args.push('--model', model);
+
+  return {
+    name: 'copilot',
+    complete({ messages, signal }) {
+      return new Promise((resolve, reject) => {
+        let child;
+        try {
+          child = spawnImpl(command, args, { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+        } catch (err) {
+          reject(new ProviderError(`Could not start "${command}": ${err.message}`, { fatal: true }));
+          return;
+        }
+        let stdout = '';
+        let stderr = '';
+        const timer = setTimeout(() => child.kill(), COPILOT_TIMEOUT_MS);
+        signal?.addEventListener('abort', () => child.kill(), { once: true });
+
+        child.stdout.on('data', (chunk) => { stdout += chunk; });
+        child.stderr.on('data', (chunk) => { stderr += chunk; });
+        child.on('error', (err) => {
+          clearTimeout(timer);
+          const missing = err.code === 'ENOENT';
+          reject(new ProviderError(
+            missing ? `GitHub Copilot CLI not found ("${command}"). Install it and run "copilot" once to sign in, or set COPILOT_BIN.` : `Copilot CLI failed: ${err.message}`,
+            { fatal: missing },
+          ));
+        });
+        child.on('close', (code) => {
+          clearTimeout(timer);
+          if (code === 0 && stdout.trim()) {
+            resolve(stdout.trim());
+            return;
+          }
+          const detail = (stderr || stdout).trim().slice(0, 500);
+          const auth = /log ?in|auth|token|sign ?in|subscription|not (?:available|enabled)|unknown model|invalid model/i.test(detail);
+          reject(new ProviderError(`Copilot CLI exited with code ${code}: ${detail || 'no output'}`, { fatal: auth }));
+        });
+        child.stdin.on('error', () => {});
+        child.stdin.end(flattenMessages(messages));
+      });
+    },
+  };
 }
 
 // Parses a Retry-After header (delta-seconds or HTTP-date) into milliseconds.

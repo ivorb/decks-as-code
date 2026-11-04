@@ -209,7 +209,14 @@ node --test                                                  # run the tests (no
   fed back; strings that still fail are skipped and listed, the file stays valid, and
   the viewer falls back to the source text for them. Exit code `2` means "done, but
   some strings were skipped"; re-run to retry them.
-- **Provider.** `--provider openai` (default) talks to any OpenAI-compatible
+- **Provider.** `--provider copilot` (default) runs the GitHub Copilot CLI in
+  non-interactive mode, so it uses the models in your Copilot subscription: no API key,
+  nothing to configure beyond signing in once by running `copilot`. Tools, MCP servers and
+  custom instructions are switched off, so the model can only answer. Optional:
+  `--model <name>` (otherwise the CLI's default), `LLM_REASONING_EFFORT` (default `low`),
+  `COPILOT_BIN` if `copilot` is not on your PATH. The five-slide sample takes under a
+  minute per language; a 50-slide deck takes a few minutes.
+  `--provider openai` talks to any OpenAI-compatible
   `/chat/completions` endpoint. Configure it with environment variables (the key is
   never a flag, never logged, never written): `LLM_API_KEY` (or `OPENAI_API_KEY`),
   `LLM_MODEL` (or `--model`), and optionally `LLM_BASE_URL` (or `--base-url`; default

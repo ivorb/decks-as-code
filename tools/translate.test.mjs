@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import { mkdtemp, mkdir, readFile, writeFile, copyFile, rm, access } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -402,6 +403,47 @@ test('openai provider config errors are explicit and fatal', () => {
   assert.throws(() => createProvider('openai', { env: base, baseUrl: 'http://example.com/v1' }), /https/);
   assert.doesNotThrow(() => createProvider('openai', { env: base, baseUrl: 'http://localhost:11434/v1' }));
   assert.throws(() => createProvider('nope'), /Unknown provider/);
+});
+
+test('copilot provider sends the prompt on stdin with tools disabled and returns stdout', async () => {
+  const calls = [];
+  const spawn = (command, args) => {
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.kill = () => {};
+    child.stdin = { on() {}, end(text) { calls.push({ command, args, stdin: text }); setImmediate(() => { child.stdout.emit('data', '{"translations":{}}\n'); child.emit('close', 0); }); } };
+    return child;
+  };
+  const provider = createProvider('copilot', { env: {}, model: 'some-model', spawn });
+  const out = await provider.complete({ messages: [{ role: 'system', content: 'SYS' }, { role: 'user', content: 'USER' }] });
+  assert.equal(out, '{"translations":{}}');
+  assert.equal(calls[0].command, 'copilot');
+  assert.deepEqual(calls[0].args.slice(calls[0].args.indexOf('--available-tools'), calls[0].args.indexOf('--available-tools') + 2), ['--available-tools', '']);
+  assert.ok(calls[0].args.includes('--no-custom-instructions'));
+  assert.deepEqual(calls[0].args.slice(-2), ['--model', 'some-model']);
+  assert.ok(calls[0].stdin.includes('[system]\nSYS') && calls[0].stdin.includes('[user]\nUSER'));
+  assert.ok(!calls[0].args.some((a) => a.includes('USER')), 'prompt must not be on the command line');
+});
+
+test('copilot provider failures: missing CLI and sign-in problems are fatal, others are not', async () => {
+  const failing = (emit) => () => {
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.kill = () => {};
+    child.stdin = { on() {}, end() { setImmediate(() => emit(child)); } };
+    return child;
+  };
+  const messages = [{ role: 'user', content: 'x' }];
+  const missing = createProvider('copilot', { env: {}, spawn: failing((c) => c.emit('error', Object.assign(new Error('spawn copilot ENOENT'), { code: 'ENOENT' }))) });
+  await assert.rejects(missing.complete({ messages }), (e) => e instanceof ProviderError && e.fatal && /not found/.test(e.message));
+
+  const signedOut = createProvider('copilot', { env: {}, spawn: failing((c) => { c.stderr.emit('data', 'Please log in with copilot login'); c.emit('close', 1); }) });
+  await assert.rejects(signedOut.complete({ messages }), (e) => e.fatal === true);
+
+  const flaky = createProvider('copilot', { env: {}, spawn: failing((c) => { c.stderr.emit('data', 'something odd'); c.emit('close', 1); }) });
+  await assert.rejects(flaky.complete({ messages }), (e) => e.fatal === false);
 });
 
 test('retry-after parsing handles seconds and HTTP dates', () => {

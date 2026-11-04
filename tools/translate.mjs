@@ -2,7 +2,7 @@
 // Translate a deck's string table with an LLM. See docs/string-table.md for the contract.
 //
 //   node tools/translate.mjs <slug> --to de,fr [--force] [--dry-run]
-//                            [--provider openai|mock] [--model <name>] [--base-url <url>]
+//                            [--provider copilot|openai|mock] [--model <name>] [--base-url <url>]
 //
 // Exit codes: 0 ok, 1 error (nothing partial written for the failing language),
 // 2 finished but some strings were skipped (they fall back to source in the viewer).
@@ -19,14 +19,16 @@ Options:
   --to <langs>       Comma-separated BCP 47 tags, e.g. de,pt-BR,ar (required)
   --force            Retranslate every string, ignoring existing translations
   --dry-run          Show what would be translated; no LLM calls, nothing written
-  --provider <name>  ${PROVIDERS.join(' | ')} (default: openai)
-  --model <name>     Model / deployment name (or LLM_MODEL)
-  --base-url <url>   OpenAI-compatible endpoint (or LLM_BASE_URL)
+  --provider <name>  ${PROVIDERS.join(' | ')} (default: copilot)
+  --model <name>     Model name (or LLM_MODEL); copilot defaults to the CLI's own model
+  --base-url <url>   OpenAI-compatible endpoint (or LLM_BASE_URL); openai provider only
   --batch-size <n>   Max strings per request (default 30)
   --decks-dir <dir>  Decks directory (default: <repo>/decks)
   -h, --help         Show this help
 
-Environment (provider "openai"): LLM_API_KEY or OPENAI_API_KEY, LLM_MODEL, LLM_BASE_URL,
+Provider "copilot" runs the GitHub Copilot CLI (sign in once with \`copilot\`); it uses the
+models in your Copilot subscription and needs no key. Optional: LLM_REASONING_EFFORT, COPILOT_BIN.
+Provider "openai": LLM_API_KEY or OPENAI_API_KEY, LLM_MODEL, LLM_BASE_URL,
 LLM_AUTH_HEADER=bearer|api-key, LLM_JSON_MODE=off.`;
 
 const LANG_RE = /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
@@ -36,7 +38,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 class UsageError extends Error {}
 
 export function parseArgs(argv) {
-  const opts = { force: false, dryRun: false, provider: 'openai', langs: [] };
+  const opts = { force: false, dryRun: false, provider: 'copilot', langs: [] };
   const positional = [];
   const takeValue = (i, flag) => {
     if (i + 1 >= argv.length || argv[i + 1].startsWith('--')) throw new UsageError(`${flag} needs a value`);
