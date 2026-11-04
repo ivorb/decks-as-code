@@ -1,0 +1,841 @@
+{
+  "version": 1,
+  "sourceLang": "en-US",
+  "strings": [
+    {
+      "id": "s1.sh2.p1",
+      "slide": 1,
+      "kind": "text",
+      "text": "Develop generative AI apps in Azure​"
+    },
+    {
+      "id": "s1.sh3.p1",
+      "slide": 1,
+      "kind": "text",
+      "text": "June 2025",
+      "context": "Develop generative AI apps in Azure​"
+    },
+    {
+      "id": "s1.sh5.p1",
+      "slide": 1,
+      "kind": "text",
+      "text": "https://aka.ms/mslearn-gen-ai-app-dev",
+      "context": "Develop generative AI apps in Azure​"
+    },
+    {
+      "id": "s1.notes.p1",
+      "slide": 1,
+      "kind": "notes",
+      "text": "Use the link on the slide to see the Microsoft Learn learning path from which this presentation is derived.",
+      "context": "Develop generative AI apps in Azure​"
+    },
+    {
+      "id": "s2.sh5.p1",
+      "slide": 2,
+      "kind": "text",
+      "text": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh3.p1",
+      "slide": 2,
+      "kind": "text",
+      "text": "© Copyright Microsoft Corporation. All rights reserved.",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh32.alt",
+      "slide": 2,
+      "kind": "alt",
+      "text": "Chat with solid fill",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh29.alt",
+      "slide": 2,
+      "kind": "alt",
+      "text": "Robot with solid fill",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh25.p1",
+      "slide": 2,
+      "kind": "text",
+      "text": "Generative AI and Agents",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh44.alt",
+      "slide": 2,
+      "kind": "alt",
+      "text": "Document outline",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh40.p1",
+      "slide": 2,
+      "kind": "text",
+      "text": "Text and Language",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh49.alt",
+      "slide": 2,
+      "kind": "alt",
+      "text": "Call center outline",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh47.p1",
+      "slide": 2,
+      "kind": "text",
+      "text": "Computer Speech",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh54.alt",
+      "slide": 2,
+      "kind": "alt",
+      "text": "Eye Scan with solid fill",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh52.p1",
+      "slide": 2,
+      "kind": "text",
+      "text": "Computer Vision",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh60.alt",
+      "slide": 2,
+      "kind": "alt",
+      "text": "Magnifying glass with solid fill",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh61.alt",
+      "slide": 2,
+      "kind": "alt",
+      "text": "Contract outline",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh57.p1",
+      "slide": 2,
+      "kind": "text",
+      "text": "Information Extraction",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh67.alt",
+      "slide": 2,
+      "kind": "alt",
+      "text": "Gears with solid fill",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.sh64.p1",
+      "slide": 2,
+      "kind": "text",
+      "text": "Machine Learning",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.notes.p1",
+      "slide": 2,
+      "kind": "notes",
+      "text": "Orient learners: “Azure AI spans multiple workload families—today we’re zooming in on <i>Generative AI and Agents</i>.”",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s2.notes.p2",
+      "slide": 2,
+      "kind": "notes",
+      "text": "Quick contrast: classic ML (predictive, f(x)=y) vs. generative AI (language + reasoning + content generation).",
+      "context": "Artificial Intelligence workloads"
+    },
+    {
+      "id": "s3.sh5.p1",
+      "slide": 3,
+      "kind": "text",
+      "text": "Our focus today"
+    },
+    {
+      "id": "s3.sh44.alt",
+      "slide": 3,
+      "kind": "alt",
+      "text": "Document outline",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh40.p1",
+      "slide": 3,
+      "kind": "text",
+      "text": "Text and Language",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh49.alt",
+      "slide": 3,
+      "kind": "alt",
+      "text": "Call center outline",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh47.p1",
+      "slide": 3,
+      "kind": "text",
+      "text": "Computer Speech",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh54.alt",
+      "slide": 3,
+      "kind": "alt",
+      "text": "Eye Scan with solid fill",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh52.p1",
+      "slide": 3,
+      "kind": "text",
+      "text": "Computer Vision",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh60.alt",
+      "slide": 3,
+      "kind": "alt",
+      "text": "Magnifying glass with solid fill",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh61.alt",
+      "slide": 3,
+      "kind": "alt",
+      "text": "Contract outline",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh57.p1",
+      "slide": 3,
+      "kind": "text",
+      "text": "Information Extraction",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh67.alt",
+      "slide": 3,
+      "kind": "alt",
+      "text": "Gears with solid fill",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh64.p1",
+      "slide": 3,
+      "kind": "text",
+      "text": "Machine Learning",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh8.alt",
+      "slide": 3,
+      "kind": "alt",
+      "text": "Chat with solid fill",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh6.alt",
+      "slide": 3,
+      "kind": "alt",
+      "text": "Robot with solid fill",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh9.p1",
+      "slide": 3,
+      "kind": "text",
+      "text": "Generative AI and Agents",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.sh3.p1",
+      "slide": 3,
+      "kind": "text",
+      "text": "© Copyright Microsoft Corporation. All rights reserved.",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.notes.p1",
+      "slide": 3,
+      "kind": "notes",
+      "text": "Reinforce scope control: “If you came for vision/speech/translation, those exist—but today’s focus is on generative AI models and chat application development.”",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s3.notes.p2",
+      "slide": 3,
+      "kind": "notes",
+      "text": "Preview the shape of the day: platform basics → models → endpoints/SDKs → chat app development→ optimization → responsible AI.",
+      "context": "Our focus today"
+    },
+    {
+      "id": "s4.sh2.p1",
+      "slide": 4,
+      "kind": "text",
+      "text": "Plan and prepare to develop AI solutions on Azure"
+    },
+    {
+      "id": "s4.sh4.p1",
+      "slide": 4,
+      "kind": "text",
+      "text": "https://aka.ms/mslearn-prepare-ai-dev",
+      "context": "Plan and prepare to develop AI solutions on Azure"
+    },
+    {
+      "id": "s4.notes.p1",
+      "slide": 4,
+      "kind": "notes",
+      "text": "Use the link on the slide to see the Microsoft Learn module from which this lesson is derived.",
+      "context": "Plan and prepare to develop AI solutions on Azure"
+    },
+    {
+      "id": "s5.M.sh37.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh38.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh48.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "73262F",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh50.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh51.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh52.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "FFB3BB",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh55.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "FFFFFF",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh57.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh58.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh59.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "FF5C39",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh61.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh62.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh63.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "73391D",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh65.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh66.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh67.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "FFA38B",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh70.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "F4F3F5",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh72.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh73.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh74.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "0078D4",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh76.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh77.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh78.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "2A446F",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh80.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh81.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh82.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "8DC8E8",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh87.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "Blue Black",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh88.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "091F2C",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh93.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh94.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh95.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "702573",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh97.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh98.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh99.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "CD9BCF",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh102.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "000000",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh105.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "Neutral Gray",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh106.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "E8E6DF",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh34.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh35.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "F4364C",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh107.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh90.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh91.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "C73ECC",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh108.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.M.sh149.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "© Copyright Microsoft Corporation. All rights reserved.",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh5.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh131.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "A unified platform for AI apps and agents",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh130.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "Foundry <i>resources</i> in Azure provide compute, storage, model delivery, and other services",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh130.p2",
+      "slide": 5,
+      "kind": "text",
+      "text": "Foundry <i>projects</i> are isolated work environments for app and agent development",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh130.p3",
+      "slide": 5,
+      "kind": "text",
+      "text": "In a project, you work with:",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh130.p4",
+      "slide": 5,
+      "kind": "text",
+      "text": "<b>Models</b> – choose and deploy models from an extensive model catalog",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh130.p5",
+      "slide": 5,
+      "kind": "text",
+      "text": "<b>Agents</b> – create and manage agents that use models for language and reasoning",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh130.p6",
+      "slide": 5,
+      "kind": "text",
+      "text": "<b>Tools</b> – connect agents to tools so they can perform actions and access information",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh130.p7",
+      "slide": 5,
+      "kind": "text",
+      "text": "<b>Knowledge</b> – manage data source access for agents so they have the information they need to act ",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh83.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh92.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "Models",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh95.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "Agents",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh97.alt",
+      "slide": 5,
+      "kind": "alt",
+      "text": "Robot with solid fill",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh98.alt",
+      "slide": 5,
+      "kind": "alt",
+      "text": "Robot with solid fill",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh99.alt",
+      "slide": 5,
+      "kind": "alt",
+      "text": "Robot with solid fill",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh102.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "Tools",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh104.alt",
+      "slide": 5,
+      "kind": "alt",
+      "text": "Wrench with solid fill",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh109.alt",
+      "slide": 5,
+      "kind": "alt",
+      "text": "Screwdriver with solid fill",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh110.alt",
+      "slide": 5,
+      "kind": "alt",
+      "text": "Screwdriver with solid fill",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh107.alt",
+      "slide": 5,
+      "kind": "alt",
+      "text": "Hammer with solid fill",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh108.alt",
+      "slide": 5,
+      "kind": "alt",
+      "text": "Hammer with solid fill",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh113.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "Knowledge",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh115.alt",
+      "slide": 5,
+      "kind": "alt",
+      "text": "Document outline",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh117.alt",
+      "slide": 5,
+      "kind": "alt",
+      "text": "Magnifying glass with solid fill",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh118.alt",
+      "slide": 5,
+      "kind": "alt",
+      "text": "Magnifying glass with solid fill",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh126.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "Microsoft Foundry <i>resource</i>",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh127.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "Microsoft Foundry <i>project</i>",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.sh3.p1",
+      "slide": 5,
+      "kind": "text",
+      "text": "© Copyright Microsoft Corporation. All rights reserved.",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.notes.p1",
+      "slide": 5,
+      "kind": "notes",
+      "text": "Define Foundry in one sentence: “Foundry gives you a project‑based workspace to build AI apps/agents with models, tools, and knowledge in one place.”",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.notes.p2",
+      "slide": 5,
+      "kind": "notes",
+      "text": "Emphasize the mental model: <b>Resources</b> provide compute/storage/model delivery services.",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.notes.p3",
+      "slide": 5,
+      "kind": "notes",
+      "text": "<b>Projects</b> are isolated work environments for app &amp; agent development.",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.notes.p4",
+      "slide": 5,
+      "kind": "notes",
+      "text": "Inside projects: <b>Models</b>, <b>Agents</b>, <b>Tools</b>, <b>Knowledge</b>.",
+      "context": "Microsoft Foundry"
+    },
+    {
+      "id": "s5.notes.p5",
+      "slide": 5,
+      "kind": "notes",
+      "text": "Practical framing: “When learners feel lost, bring them back to this picture—most tasks map to one of these four.”",
+      "context": "Microsoft Foundry"
+    }
+  ]
+}

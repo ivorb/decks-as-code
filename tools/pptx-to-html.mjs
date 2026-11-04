@@ -31,6 +31,13 @@ function inflateAll(bytes) {
 
 const exists = (p) => access(p).then(() => true, () => false);
 
+/** "1-5" -> [1, 5]; "3" -> [3, 3]. */
+function parseRange(text) {
+  const m = /^(\d+)(?:-(\d+))?$/.exec(text);
+  if (!m) throw new Error(`--slides expects a number or a range like 1-5, got "${text}"`);
+  return [Number(m[1]), Number(m[2] ?? m[1])];
+}
+
 function parseArgs(argv) {
   const opts = { _: [] };
   for (let i = 0; i < argv.length; i++) {
@@ -47,7 +54,7 @@ async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const file = opts._[0];
   if (!file) {
-    console.error('Usage: node tools/pptx-to-html.mjs <file.pptx> [--slug name] [--out dir] [--title t] [--force]');
+    console.error('Usage: node tools/pptx-to-html.mjs <file.pptx> [--slug name] [--out dir] [--title t] [--slides 1-5] [--force]');
     process.exit(1);
   }
 
@@ -61,6 +68,7 @@ async function main() {
   const result = pptxToHtml(files, {
     slug, title: opts.title, author: opts.author, date: opts.date, theme: opts.theme,
     description: opts.description ?? `Imported from ${basename(file)}.`,
+    slideRange: opts.slides ? parseRange(opts.slides) : undefined,
   });
 
   await rm(outDir, { recursive: true, force: true });

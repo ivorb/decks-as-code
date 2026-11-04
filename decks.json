@@ -1,7 +1,17 @@
 {
   "generatedBy": "tools/build-manifest.mjs",
-  "count": 1,
+  "count": 2,
   "decks": [
+    {
+      "slug": "sample-ai-apps",
+      "title": "Develop generative AI apps in Azure (5-slide sample)",
+      "description": "First five slides of a converted PowerPoint course deck, to show the PPTX-to-HTML converter.",
+      "author": "",
+      "date": "2026-11-04",
+      "tags": [],
+      "theme": "white",
+      "format": "html"
+    },
     {
       "slug": "decks-as-code",
       "title": "Decks as Code",

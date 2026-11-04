@@ -629,6 +629,8 @@ function renderPic(pic, S, part, T) {
   });
   if (/\.(emf|wmf)$/i.test(target)) {
     warn(S, `picture ${id} is EMF/WMF and cannot be shown in a browser`);
+    // Logos on layouts repeat on every slide; a hatched box on each would be noise.
+    if (part.decor) return '';
     return `<div class="pic miss" style="${outer}" title="Unsupported picture format"></div>`;
   }
 
@@ -835,7 +837,7 @@ export function pptxToHtml(files, options = {}) {
     .map((s) => presRels.get(s.attrs['r:id'])?.target)
     .filter((p) => p && files.has(p));
   if (!slidePaths.length) throw new Error('No slides found. Is this really a .pptx?');
-
+  const [firstSlide, lastSlide] = options.slideRange ?? [1, slidePaths.length];
   const sz = child(presXml, 'p:sldSz');
   const width = Math.round(emuToPx(num(sz?.attrs.cx, 12192000)));
   const height = Math.round(emuToPx(num(sz?.attrs.cy, 6858000)));
@@ -851,6 +853,7 @@ export function pptxToHtml(files, options = {}) {
 
   slidePaths.forEach((slidePath, index) => {
     const slideNo = index + 1;
+    if (slideNo < firstSlide || slideNo > lastSlide) return;
     const sld = pkg.xml(slidePath);
     for (const m of pkg.text(slidePath).matchAll(/\blang="([A-Za-z-]+)"/g)) langCounts[m[1]] = (langCounts[m[1]] ?? 0) + 1;
 
