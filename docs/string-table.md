@@ -46,16 +46,20 @@ notes. Empty paragraphs are not emitted.
 | `s<slide>.sh<shapeId>.p<n>` | Paragraph `n` (1-based) of the shape whose `cNvPr id` is `shapeId` |
 | `s<slide>.sh<shapeId>.r<row>c<col>.p<n>` | Paragraph in a table cell |
 | `s<slide>.sh<shapeId>.alt` | Alt text of a shape or picture |
+| `s<slide>.L.sh<shapeId>.p<n>` | Text from a layout or master shape drawn on that slide (logos, labels) |
 | `s<slide>.notes.p<n>` | Speaker note paragraph |
 
 Shape IDs come from the PPTX, so they survive reordering shapes within a slide.
 Slide numbers do not survive reordering slides; re-running the converter after
 reordering means re-translating.
 
+Paragraphs set entirely in a monospace font are code. They stay in the HTML but
+are left out of the table, so nothing translates them.
+
 ### Inline markup in `text`
 
-The only tags allowed are `<b>`, `<i>`, `<u>`, `<sup>`, `<sub>`, `<br>` and
-`<a href="...">`. Everything else is escaped (`&lt;`, `&gt;`, `&amp;`).
+The only tags allowed are `<b>`, `<i>`, `<u>`, `<sup>`, `<sub>`, `<code>`, `<br>`
+and `<a href="...">`. Everything else is escaped (`&lt;`, `&gt;`, `&amp;`).
 
 Translators must keep every tag, in matching pairs, and must not change `href`
 values. Tag order may change when word order does. A translation that fails this
