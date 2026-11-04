@@ -169,7 +169,8 @@ Open `convert.html` on the served site (or `node tools/pptx-to-html.mjs talk.ppt
 The folder holds `slides.html`, `strings.json` and `images/`. `strings.json` lists
 every paragraph, speaker note and alt text under a stable ID, in the format described
 in [`docs/string-table.md`](docs/string-table.md); translations are `strings.<lang>.json`
-files in the same folder, and `?lang=<code>` on the deck or standalone file shows one.
+files in the same folder. A language picker appears in the corner of the deck (and the
+single-file version) when translations exist; `?lang=<code>` opens one directly.
 Longer translated text shrinks to fit its box (down to 60%); add `&review` to the
 address to outline boxes that still overflow.
 

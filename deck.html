@@ -264,7 +264,30 @@ python -m http.server 8000 --directory dist</code></pre>
           pdfSeparateFragments: false,
         });
         DeckI18n.autoFit(Reveal);
+        await mountLanguagePicker(base, meta);
         window.DECK_READY = true;
+      }
+
+      /** Offer a language switch when decks.json lists translations for this deck. */
+      async function mountLanguagePicker(base, meta) {
+        let languages = [];
+        try {
+          const res = await fetch('decks.json', { cache: 'no-cache' });
+          const slug = new URLSearchParams(window.location.search).get('d');
+          if (res.ok) languages = ((await res.json()).decks || []).find((d) => d.slug === slug)?.languages || [];
+        } catch {
+          /* no picker without a listing */
+        }
+        DeckI18n.mountPicker({
+          source: meta.lang || 'en',
+          languages,
+          reveal: Reveal,
+          load: async (tag) => {
+            const res = await fetch(`${base}/strings.${encodeURIComponent(tag)}.json`, { cache: 'no-cache' });
+            if (!res.ok) throw new Error(`No translation for ${tag}`);
+            return res.json();
+          },
+        });
       }
 
       /*

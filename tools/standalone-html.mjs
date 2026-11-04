@@ -100,6 +100,12 @@ ${slidesHtml}
           center: false,
         });
         DeckI18n.autoFit(Reveal);
+        DeckI18n.mountPicker({
+          source: ${JSON.stringify(o.lang || 'en')},
+          languages: Object.keys(tables),
+          reveal: Reveal,
+          load: async (tag) => tables[tag],
+        });
         window.DECK_READY = true;
       })();
     </script>

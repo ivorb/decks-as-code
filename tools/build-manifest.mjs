@@ -74,6 +74,11 @@ async function buildManifest() {
     const meta = await readMeta(deckDir, slug);
     const title = meta.title || (hasHtml ? slug : titleFromSlides(await readFile(slidesPath, 'utf8'), slug));
 
+    // Translations sit next to slides.html as strings.<lang>.json; the deck page offers them in a picker.
+    const languages = hasHtml
+      ? (await readdir(deckDir)).map((f) => /^strings\.([A-Za-z0-9-]+)\.json$/.exec(f)?.[1]).filter(Boolean).sort()
+      : [];
+
     decks.push({
       slug,
       title,
@@ -83,6 +88,7 @@ async function buildManifest() {
       tags: Array.isArray(meta.tags) ? meta.tags : [],
       theme: meta.theme || 'night',
       ...(hasHtml ? { format: 'html' } : {}),
+      ...(languages.length ? { languages } : {}),
     });
   }
 
