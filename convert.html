@@ -119,6 +119,9 @@
       #preview iframe { width: 100%; height: 100%; border: 0; display: block; }
       #closePreview { position: fixed; top: 14px; right: 16px; z-index: 60; background: rgba(0, 0, 0, 0.6); }
 
+      .saved-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+      .saved-head h2 { margin: 0; flex: 1; }
+      .saved-head button { padding: 5px 11px; font-size: 0.82rem; }
       .saved { list-style: none; margin: 0; padding: 0; }
       .saved li {
         display: flex;
@@ -156,11 +159,16 @@
       <div class="status" id="status"></div>
 
       <section class="panel hidden" id="saved">
-        <h2>Saved in this session</h2>
+        <div class="saved-head">
+          <h2>Saved in this browser</h2>
+          <span class="note" id="savedTotal"></span>
+          <button id="removeAllBtn">Remove all</button>
+        </div>
         <ul class="saved" id="savedList"></ul>
         <p class="note" style="margin-top: 14px">
-          Kept in this browser tab only. They are gone when you close the tab, so
-          download anything you want to keep.
+          Kept in this browser only, on this computer. They stay until you remove them or
+          clear site data, and are not synced anywhere, so download anything you need
+          elsewhere.
         </p>
       </section>
       <section class="panel hidden" id="result">
@@ -184,7 +192,7 @@
 
         <div class="actions">
           <button class="primary" id="previewBtn">Preview slides</button>
-          <button id="saveBtn" class="hidden">Save in this session</button>
+          <button id="saveBtn" class="hidden">Save in this browser</button>
           <button id="standaloneBtn">Download single HTML file</button>
           <button id="zipBtn">Download deck folder (.zip)</button>
         </div>
@@ -234,7 +242,7 @@
     </script>
 
     <div id="preview" class="hidden">
-      <iframe id="previewFrame" title="Slide preview"></iframe>
+      <iframe id="previewFrame" title="Slide preview" allow="fullscreen"></iframe>
     </div>
     <button id="closePreview" class="hidden">Close preview</button>
 
@@ -328,7 +336,7 @@
           $('title').value = fields?.title || probe.deck.title;
           $('author').value = fields?.author ?? probe.deck.author;
           current.result = probe;
-          $('saveBtn').textContent = 'Save in this session';
+          $('saveBtn').textContent = 'Save in this browser';
           render();
           setStatus(`Converted ${probe.stats.slides} slides from ${name}.`, 'ok');
         } catch (error) {
@@ -351,18 +359,14 @@
       /*
        * Decks are kept as the original .pptx in IndexedDB (large files do not fit
        * in sessionStorage) and converted again when opened, which takes well under
-       * a second. Each entry is stamped with a per-tab id from sessionStorage, and
-       * any entry from another tab session is deleted on load, so nothing outlives
-       * the tab it was saved in.
+       * a second. They stay until the user removes them or clears site data for this
+       * origin. They live in this browser only, and are never sent anywhere.
        */
       const DB_NAME = 'decks-session';
       const STORE = 'decks';
       const hasStorage = typeof indexedDB !== 'undefined';
-      let tabId = sessionStorage.getItem('convertTabId');
-      if (!tabId) {
-        tabId = crypto.randomUUID();
-        sessionStorage.setItem('convertTabId', tabId);
-      }
+      // Ask the browser not to evict saved decks under storage pressure; harmless if refused.
+      navigator.storage?.persist?.().catch(() => {});
 
       const openDb = () => new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, 1);
@@ -388,9 +392,7 @@
 
       async function listSaved() {
         const all = (await dbRun('readonly', (s) => s.getAll())) ?? [];
-        const stale = all.filter((d) => d.tabId !== tabId);
-        for (const d of stale) await dbRun('readwrite', (s) => s.delete(d.id));
-        return all.filter((d) => d.tabId === tabId).sort((a, b) => b.savedAt - a.savedAt);
+        return all.sort((a, b) => b.savedAt - a.savedAt);
       }
 
       async function renderSaved() {
@@ -398,21 +400,29 @@
         let decks = [];
         try { decks = await listSaved(); } catch { /* storage blocked: no list */ }
         $('saved').classList.toggle('hidden', decks.length === 0);
+        const total = decks.reduce((n, d) => n + d.bytes.byteLength, 0);
+        $('savedTotal').textContent = decks.length ? `${(total / 1048576).toFixed(1)} MB used` : '';
         $('savedList').innerHTML = decks.map((d) => `
           <li data-id="${escapeHtml(d.id)}">
             <div class="what"><b>${escapeHtml(d.title || d.name)}</b>
-              <span>${escapeHtml(d.name)} · ${d.slides} slides · ${(d.bytes.byteLength / 1048576).toFixed(1)} MB</span></div>
+              <span>${escapeHtml(d.name)} · ${d.slides} slides · ${(d.bytes.byteLength / 1048576).toFixed(1)} MB · saved ${new Date(d.savedAt).toLocaleString()}</span></div>
             <button data-act="open">Open</button>
             <button data-act="remove">Remove</button>
           </li>`).join('');
       }
+
+      $('removeAllBtn').addEventListener('click', async () => {
+        if (!confirm('Remove every saved deck from this browser?')) return;
+        await dbRun('readwrite', (s) => s.clear());
+        $('saveBtn').textContent = 'Save in this browser';
+        await renderSaved();
+      });
 
       $('saveBtn').addEventListener('click', async () => {
         if (!current) return;
         try {
           await dbRun('readwrite', (s) => s.put({
             id: `${current.name}:${current.bytes.byteLength}`,
-            tabId,
             name: current.name,
             title: $('title').value,
             slug: $('slug').value,
@@ -422,7 +432,7 @@
             savedAt: Date.now(),
           }));
           $('saveBtn').textContent = 'Saved ✓';
-          setStatus('Saved in this session. It stays until you close this tab.', 'ok');
+          setStatus('Saved in this browser. It stays until you remove it or clear site data.', 'ok');
           await renderSaved();
         } catch (error) {
           setStatus(`Could not save: ${error?.message || 'browser storage is full or blocked'}.`, 'error');

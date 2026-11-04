@@ -165,9 +165,9 @@ Open `convert.html` on the served site (or `node tools/pptx-to-html.mjs talk.ppt
 - **Look through** the generated `slides.html` and the string table, and see what the
   converter could not handle.
 - **Download** a single HTML file you can double-click, or the deck folder as a ZIP.
-- **Save in this session** to come back to a conversion without downloading it. Saved
-  decks are listed on the page and kept in this browser tab only; closing the tab clears
-  them.
+- **Save in this browser** to come back to a conversion without downloading it. Saved
+  decks are listed on the page and kept in this browser on this computer until you remove
+  them or clear site data. They are not synced anywhere.
 
 The folder holds `slides.html`, `strings.json` and `images/`. `strings.json` lists
 every paragraph, speaker note and alt text under a stable ID, in the format described
