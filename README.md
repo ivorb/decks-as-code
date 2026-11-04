@@ -47,7 +47,10 @@ decks-as-code/
 │   ├── build-manifest.mjs     regenerates decks.json
 │   ├── build-site.mjs         builds dist/: offline site plus single-file decks
 │   ├── import-pptx.mjs        converts a .pptx into a Markdown deck folder
-│   └── pptx-to-html.mjs       converts a .pptx into an HTML deck folder (pptx-html.mjs)
+│   ├── pptx-to-html.mjs       converts a .pptx into an HTML deck folder (pptx-html.mjs)
+│   ├── translate.mjs          translates a deck's strings.json with an LLM
+│   ├── translate-core.mjs     hashing, validation, batching, retry (used by translate)
+│   └── llm-provider.mjs       provider interface: copilot, openai-compatible, mock
 └── decks/
     └── <slug>/
         ├── slides.md          the deck. The only file you edit day to day.
@@ -182,6 +185,40 @@ Everything the converter skipped or approximated is listed under "Needs a look".
 
 Code paragraphs (monospace text) stay on the slide but are left out of the string
 table, so nothing translates them.
+
+---
+
+## Translate a deck
+
+`tools/translate.mjs` translates a deck's string table (`decks/<slug>/strings.json`,
+see [`docs/string-table.md`](docs/string-table.md)) into `strings.<lang>.json` files.
+Node 18+, no dependencies.
+
+```powershell
+node tools\translate.mjs my-talk --to de,pt-BR,ar            # translate
+node tools\translate.mjs my-talk --to de --dry-run           # show what would change
+node tools\translate.mjs my-talk --to de --force             # retranslate everything
+node tools\translate.mjs my-talk --to de --provider mock     # offline fake, no LLM
+node --test                                                  # run the tests (no network)
+```
+
+- **Incremental.** Only strings that are missing or whose source text changed (the
+  `src` hash no longer matches) are sent to the model. `--force` redoes all of them.
+- **Validated.** Every translation must keep the same inline tags (in matching pairs),
+  keep `href` values, and be non-empty. A failing batch is retried once with the error
+  fed back; strings that still fail are skipped and listed, the file stays valid, and
+  the viewer falls back to the source text for them. Exit code `2` means "done, but
+  some strings were skipped"; re-run to retry them.
+- **Provider.** `--provider openai` (default) talks to any OpenAI-compatible
+  `/chat/completions` endpoint. Configure it with environment variables (the key is
+  never a flag, never logged, never written): `LLM_API_KEY` (or `OPENAI_API_KEY`),
+  `LLM_MODEL` (or `--model`), and optionally `LLM_BASE_URL` (or `--base-url`; default
+  `https://api.openai.com/v1`). For Azure OpenAI / Foundry use the
+  `https://<resource>.openai.azure.com/openai/v1` base URL, the deployment name as the
+  model, and `LLM_AUTH_HEADER=api-key`. Set `LLM_JSON_MODE=off` if a host rejects
+  `response_format`. 429s honour `retry-after`. Providers live in
+  `tools/llm-provider.mjs`; adding one means returning `{ name, complete({messages}) }`.
+  GitHub Models was retired on 2026-07-30, so it is not supported.
 
 ---
 
