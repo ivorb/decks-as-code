@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "sourceLang": "en",
+  "strings": [
+    { "id": "s1.sh2.p1", "slide": 1, "kind": "text", "text": "Decks as <b>Code</b>" },
+    { "id": "s1.sh3.p1", "slide": 1, "kind": "text", "text": "Replacing PPTX with plain-text presentations" },
+    { "id": "s2.sh2.p1", "slide": 2, "kind": "text", "text": "Why bother" },
+    { "id": "s2.sh3.p1", "slide": 2, "kind": "text", "context": "Why bother", "text": "Changes are a <i>readable</i> diff in a pull request" },
+    { "id": "s2.sh3.p2", "slide": 2, "kind": "text", "context": "Why bother", "text": "Read the <a href=\"https://example.com/docs\">docs</a> first.<br>Then try it." },
+    { "id": "s2.sh4.r1c1.p1", "slide": 2, "kind": "table", "context": "Why bother", "text": "Tool" },
+    { "id": "s2.sh5.alt", "slide": 2, "kind": "alt", "context": "Why bother", "text": "Diagram of the build pipeline" },
+    { "id": "s2.notes.p1", "slide": 2, "kind": "notes", "context": "Why bother", "text": "Pause here and ask who has lost a deck to an email thread." }
+  ]
+}

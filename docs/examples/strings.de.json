@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "lang": "de",
+  "sourceLang": "en",
+  "strings": {
+    "s1.sh2.p1": { "text": "Decks als <b>Code</b>", "src": "2218a577" },
+    "s1.sh3.p1": { "text": "PPTX durch Klartext-Präsentationen ersetzen", "src": "2463d0d5" }
+  }
+}
