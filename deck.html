@@ -131,6 +131,11 @@ python -m http.server 8000 --directory dist</code></pre>
         document.title = meta.title || slug;
         await loadStyles(meta.theme || 'night');
 
+        if (meta.format === 'html') {
+          await bootHtmlDeck(base, meta, rebase);
+          return;
+        }
+
         // Confirm slides.md exists before handing off to the Markdown plugin,
         // which fails silently on a 404 and leaves a blank deck.
         const slidesUrl = `${base}/slides.md`;
@@ -213,6 +218,68 @@ python -m http.server 8000 --directory dist</code></pre>
         // decktape waits for this before capturing, so it never races the
         // Markdown and Mermaid rendering above.
         window.DECK_READY = true;
+      }
+
+      /*
+       * Decks imported from PowerPoint ship ready-made HTML (slides.html): fixed
+       * canvases with shapes already placed, plus strings.json for localization.
+       * Reveal only handles navigation and scaling for them.
+       */
+      async function bootHtmlDeck(base, meta, rebase) {
+        const slidesUrl = `${base}/slides.html`;
+        let html = null;
+        try {
+          const res = await fetch(slidesUrl, { cache: 'no-cache' });
+          if (res.ok) html = await res.text();
+        } catch {
+          /* handled below */
+        }
+        await loadScripts(false);
+        if (html === null) {
+          fail('Deck not found', `No slides at <code>${slidesUrl}</code>`);
+          return;
+        }
+
+        await Promise.all([loadCss('assets/pptx-slide.css'), loadScript('assets/deck-i18n.js')]);
+        document.documentElement.lang = meta.lang || 'en';
+        const canvas = meta.canvas || { width: 1280, height: 720 };
+        document.querySelector('.slides').innerHTML = html.replace(
+          /(\bsrc="|url\()(?!data:|https?:|\/)([^")]+)/g,
+          (m, head, ref) => head + rebase(ref),
+        );
+
+        await applyLanguage(base, meta);
+
+        await Reveal.initialize({
+          plugins: [RevealNotes],
+          hash: true,
+          slideNumber: 'c/t',
+          transition: 'none',
+          width: canvas.width,
+          height: canvas.height,
+          margin: 0,
+          minScale: 0.2,
+          maxScale: 3,
+          center: false,
+          pdfSeparateFragments: false,
+        });
+        DeckI18n.autoFit(Reveal);
+        window.DECK_READY = true;
+      }
+
+      /*
+       * ?lang=de swaps every data-i18n node for its entry in strings.de.json
+       * (see assets/deck-i18n.js and docs/string-table.md).
+       */
+      async function applyLanguage(base, meta) {
+        const lang = DeckI18n.langFromUrl();
+        if (!lang || lang === meta.lang) return;
+        try {
+          const res = await fetch(`${base}/strings.${encodeURIComponent(lang)}.json`, { cache: 'no-cache' });
+          if (res.ok) DeckI18n.apply(await res.json(), lang);
+        } catch {
+          /* keep the source language */
+        }
       }
 
       /*

@@ -19,6 +19,7 @@
 import { readFile, writeFile, mkdir, rm, readdir, stat } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assembleStandaloneHtml } from './standalone-html.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -277,6 +278,32 @@ ${usesMermaid ? `        mermaid.initialize({ startOnLoad: false, theme: 'dark' 
 `;
 }
 
+/**
+ * Standalone build for decks imported from PowerPoint (format "html"): the
+ * slides are already HTML, so they go in as-is with pictures inlined. Any
+ * strings.<lang>.json files ride along, and ?lang=<code> picks one.
+ */
+async function buildStandaloneHtml(deck, meta, slidesHtml, tables, images, sharedTheme) {
+  const [reveal, theme, revealJs, pptx, i18n] = await Promise.all([
+    fetchAsset(asset.revealCss),
+    fetchAsset(asset.theme(deck.theme || 'white')),
+    fetchAsset(asset.revealJs),
+    readFile(join(ROOT, 'assets/pptx-slide.css'), 'utf8'),
+    readFile(join(ROOT, 'assets/deck-i18n.js'), 'utf8'),
+  ]);
+  return assembleStandaloneHtml({
+    title: deck.title || deck.slug,
+    source: `decks/${deck.slug}/slides.html by tools/build-site.mjs`,
+    lang: meta.lang,
+    canvas: meta.canvas,
+    slidesHtml,
+    images,
+    tables,
+    css: { reveal, theme, shared: sharedTheme, pptx },
+    js: { reveal: revealJs, i18n },
+  });
+}
+
 async function main() {
   const manifest = JSON.parse(await readFile(join(ROOT, 'decks.json'), 'utf8'));
   const decks = manifest.decks ?? [];
@@ -315,7 +342,8 @@ async function main() {
   await copyInto('index.html');
   await copyInto('decks.json');
   await copyInto('assets/theme.css');
-
+  await copyInto('assets/pptx-slide.css');
+  await copyInto('assets/deck-i18n.js');
   const deckHtml = await readFile(join(ROOT, 'deck.html'), 'utf8');
   const rewritten = deckHtml.replace(
     /window\.DECK_ASSET_BASE = '[^']*';/,
@@ -333,6 +361,16 @@ async function main() {
   if (importRewritten === importHtml) throw new Error('Could not rewrite DECK_ASSET_BASE in import.html');
   await writeFile(join(DIST, 'import.html'), importRewritten, 'utf8');
   await copyInto('tools/pptx-core.mjs');
+  for (const file of ['xml-lite', 'pptx-style', 'pptx-geom', 'pptx-html', 'zip-tools', 'standalone-html']) {
+    await copyInto(`tools/${file}.mjs`);
+  }
+  const convertHtml = await readFile(join(ROOT, 'convert.html'), 'utf8');
+  const convertRewritten = convertHtml.replace(
+    /window\.DECK_ASSET_BASE = '[^']*';/,
+    "window.DECK_ASSET_BASE = './vendor';",
+  );
+  if (convertRewritten === convertHtml) throw new Error('Could not rewrite DECK_ASSET_BASE in convert.html');
+  await writeFile(join(DIST, 'convert.html'), convertRewritten, 'utf8');
 
   // 3. Copy each deck's sources, and build its standalone single file.
   const sharedTheme = await readFile(join(ROOT, 'assets/theme.css'), 'utf8');
@@ -340,6 +378,36 @@ async function main() {
 
   for (const deck of decks) {
     const deckDir = join('decks', deck.slug);
+    const posixDir = deckDir.replace(/\\/g, '/');
+
+    if (deck.format === 'html') {
+      const slidesHtml = await readFile(join(ROOT, deckDir, 'slides.html'), 'utf8');
+      const meta = JSON.parse(await readFile(join(ROOT, deckDir, 'deck.json'), 'utf8'));
+
+      // Everything in the folder ships: slides.html, string tables, images.
+      const assets = await deckAssetFiles(deckDir);
+      for (const file of assets) await copyBinaryInto(`${posixDir}/${file}`);
+      await copyInto(`${posixDir}/deck.json`);
+
+      const tables = {};
+      for (const file of assets) {
+        const m = /^strings\.([A-Za-z0-9-]+)\.json$/.exec(file);
+        if (m) tables[m[1]] = JSON.parse(await readFile(join(ROOT, deckDir, file), 'utf8'));
+      }
+
+      const images = {};
+      for (const file of assets) {
+        const m = /^images\/([^/]+)$/.exec(file);
+        const mime = m && MIME_BY_EXT[m[1].slice(m[1].lastIndexOf('.')).toLowerCase()];
+        if (mime) images[m[1]] = `data:${mime};base64,${(await readFile(join(ROOT, deckDir, file))).toString('base64')}`;
+      }
+
+      const html = await buildStandaloneHtml(deck, meta, slidesHtml, tables, images, sharedTheme);
+      await writeFile(join(DIST, 'standalone', `${deck.slug}.html`), html, 'utf8');
+      console.log(`standalone/${deck.slug}.html  ${(Buffer.byteLength(html) / 1024 / 1024).toFixed(1)} MB  (html deck, ${Object.keys(tables).length} translation(s))`);
+      continue;
+    }
+
     const slides = await readFile(join(ROOT, deckDir, 'slides.md'), 'utf8');
 
     await copyInto(join(deckDir, 'slides.md').replace(/\\/g, '/'));
@@ -385,8 +453,12 @@ async function main() {
       '  Everything is vendored, so it needs no internet access.',
       '',
       'import.html',
-      '  Convert a PowerPoint file into a deck in the browser. Also needs to be',
+      '  Convert a PowerPoint file into a Markdown deck in the browser. Also needs to be',
       '  served rather than double-clicked. The file never leaves your machine.',
+      '',
+      'convert.html',
+      '  Convert a PowerPoint file into localizable HTML (positioned slides plus a',
+      '  string table), preview it, and download a single HTML file. Also needs a server.',
       '',
       'Arrow keys navigate, S opens speaker notes (served site only),',
       'Esc shows the slide overview, ? lists every shortcut.',

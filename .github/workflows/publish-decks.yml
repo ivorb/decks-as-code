@@ -12,6 +12,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      export_pdfs:
+        description: Also export a PDF per deck (dormant by default)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -46,13 +51,17 @@ jobs:
 
       # Serving dist/ (not the source) means the PDFs are rendered from the exact
       # bytes we ship, so a broken vendored asset fails the build here.
+      # PDF export is dormant: it only runs from a manual "Run workflow" with
+      # export_pdfs ticked. Push and pull_request runs skip these three steps.
       - name: Serve built site
+        if: inputs.export_pdfs
         working-directory: dist
         run: |
           npx --yes http-server . -p "$DECK_PORT" --silent &
           npx --yes wait-on -t 60000 "http://127.0.0.1:$DECK_PORT/index.html"
 
       - name: Export a PDF per deck
+        if: inputs.export_pdfs
         working-directory: dist
         run: |
           slugs=$(node -e "console.log(require('./decks.json').decks.map(d => d.slug).join('\n'))")
@@ -78,6 +87,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload PDFs
+        if: inputs.export_pdfs
         uses: actions/upload-artifact@v4
         with:
           name: deck-pdfs

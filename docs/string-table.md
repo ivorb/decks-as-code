@@ -46,7 +46,8 @@ notes. Empty paragraphs are not emitted.
 | `s<slide>.sh<shapeId>.p<n>` | Paragraph `n` (1-based) of the shape whose `cNvPr id` is `shapeId` |
 | `s<slide>.sh<shapeId>.r<row>c<col>.p<n>` | Paragraph in a table cell |
 | `s<slide>.sh<shapeId>.alt` | Alt text of a shape or picture |
-| `s<slide>.L.sh<shapeId>.p<n>` | Text from a layout or master shape drawn on that slide (logos, labels) |
+| `s<slide>.L.sh<shapeId>.p<n>` | Text from a layout shape drawn on that slide (logos, labels) |
+| `s<slide>.M.sh<shapeId>.p<n>` | Same, from the slide master |
 | `s<slide>.notes.p<n>` | Speaker note paragraph |
 
 Shape IDs come from the PPTX, so they survive reordering shapes within a slide.
@@ -87,6 +88,25 @@ check is invalid.
   deck never renders blank.
 - Right-to-left languages (`ar`, `he`, `fa`, `ur`) set `dir="rtl"` on the deck
   root, along with `lang`.
+
+## In the HTML
+
+`slides.html` marks every translatable node so a viewer can swap text without
+knowing anything about PowerPoint:
+
+| Marker | Meaning |
+| --- | --- |
+| `data-i18n="<id>"` | Replace this element's contents with the string's `text` |
+| `data-i18n-alt="<id>"` | Replace this image's `alt` with the string's text, tags removed |
+| `data-nt` | Code or other text that is deliberately not translated |
+
+`assets/deck-i18n.js` does the swap (`DeckI18n.apply(table, lang)`) and rebuilds
+each translation from the allowed tags only, so a table cannot inject markup.
+`deck.html?d=<slug>&lang=de` and the standalone file's `?lang=de` both use it.
+
+Longer text is expected: after a swap, any box whose text no longer fits is
+shrunk (down to 60%) so it does not run over its neighbours. Add `&review` to the
+address to outline boxes that still overflow.
 
 ## Rules for consumers
 

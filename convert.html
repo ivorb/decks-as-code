@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Convert a PowerPoint to HTML · Decks as Code</title>
+    <link rel="stylesheet" href="assets/theme.css" />
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--brand-bg);
+        color: var(--brand-text);
+        font-family: var(--brand-font);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .wrap { max-width: 960px; margin: 0 auto; padding: 56px 24px 96px; }
+      .back { color: var(--brand-muted); text-decoration: none; font-size: 0.9rem; }
+      .back:hover { color: var(--brand-accent); }
+      header h1 { margin: 18px 0 8px; font-size: 2.1rem; letter-spacing: -0.02em; }
+      header p { margin: 0; color: var(--brand-muted); line-height: 1.6; }
+
+      .drop {
+        margin-top: 32px;
+        padding: 44px 24px;
+        border: 2px dashed var(--brand-border);
+        border-radius: 14px;
+        text-align: center;
+        background: var(--brand-surface);
+        transition: border-color 0.15s ease, background 0.15s ease;
+        cursor: pointer;
+      }
+      .drop:hover, .drop.over { border-color: var(--brand-accent); background: rgba(255, 255, 255, 0.04); }
+      .drop strong { display: block; font-size: 1.1rem; margin-bottom: 6px; }
+      .drop span { color: var(--brand-muted); font-size: 0.92rem; }
+
+      .panel {
+        margin-top: 28px;
+        background: var(--brand-surface);
+        border: 1px solid var(--brand-border);
+        border-radius: 12px;
+        padding: 22px 24px;
+      }
+      .panel h2 { margin: 0 0 14px; font-size: 1.1rem; }
+
+      .fields { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+      label { display: block; font-size: 0.82rem; color: var(--brand-muted); margin-bottom: 5px; }
+      input[type='text'] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 7px;
+        border: 1px solid var(--brand-border);
+        background: var(--brand-bg);
+        color: var(--brand-text);
+        font: inherit;
+        font-size: 0.92rem;
+      }
+      input[type='text']:focus { outline: none; border-color: var(--brand-accent); }
+
+      .stats { display: flex; flex-wrap: wrap; gap: 26px; margin: 4px 0 18px; }
+      .stat b { display: block; font-size: 1.7rem; line-height: 1.1; }
+      .stat span { color: var(--brand-muted); font-size: 0.82rem; }
+
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+      button {
+        font: inherit;
+        font-size: 0.92rem;
+        padding: 9px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--brand-border);
+        background: transparent;
+        color: var(--brand-text);
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+      button:hover:not(:disabled) { border-color: var(--brand-accent); background: rgba(255, 255, 255, 0.05); }
+      button.primary { background: var(--brand-accent); border-color: var(--brand-accent); color: #10131a; font-weight: 600; }
+      button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+      .tabs { display: flex; gap: 6px; margin: 26px 0 0; border-bottom: 1px solid var(--brand-border); }
+      .tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 14px; color: var(--brand-muted); }
+      .tabs button[aria-selected='true'] { color: var(--brand-text); border-bottom-color: var(--brand-accent); }
+
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        height: 360px;
+        margin-top: 14px;
+        padding: 14px;
+        border-radius: 9px;
+        border: 1px solid var(--brand-border);
+        background: var(--brand-bg);
+        color: var(--brand-text);
+        font-family: var(--brand-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+        font-size: 0.8rem;
+        line-height: 1.5;
+        resize: vertical;
+        white-space: pre;
+      }
+
+      .warn { margin: 14px 0 0; padding-left: 18px; color: var(--brand-muted); font-size: 0.88rem; line-height: 1.7; }
+      .status { margin-top: 14px; font-size: 0.92rem; min-height: 1.4em; }
+      .status.error { color: #ff8a80; }
+      .status.ok { color: #8ee6a0; }
+      .hidden { display: none; }
+
+      .note { color: var(--brand-muted); font-size: 0.86rem; line-height: 1.65; }
+      .note code {
+        background: rgba(255, 255, 255, 0.07);
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+
+      #preview { position: fixed; inset: 0; z-index: 50; background: var(--brand-bg); }
+      #preview.hidden { display: none; }
+      #closePreview { position: fixed; top: 14px; right: 16px; z-index: 60; background: rgba(0, 0, 0, 0.6); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" id="page">
+      <a class="back" href="index.html">&larr; All decks</a>
+
+      <header>
+        <h1>Convert a PowerPoint to HTML</h1>
+        <p>
+          Turns a .pptx into HTML slides with every piece of text kept as real,
+          translatable text. The file is read here in your browser and never uploaded
+          anywhere.
+        </p>
+      </header>
+
+      <div class="drop" id="drop">
+        <strong>Drop a .pptx here</strong>
+        <span>or click to choose one</span>
+        <input type="file" id="file" accept=".pptx" class="hidden" />
+      </div>
+
+      <div class="status" id="status"></div>
+
+      <section class="panel hidden" id="result">
+        <h2 id="resultTitle">Converted</h2>
+        <div class="stats" id="stats"></div>
+
+        <div class="fields">
+          <div>
+            <label for="slug">Folder name</label>
+            <input type="text" id="slug" spellcheck="false" />
+          </div>
+          <div>
+            <label for="title">Title</label>
+            <input type="text" id="title" />
+          </div>
+          <div>
+            <label for="author">Author</label>
+            <input type="text" id="author" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="previewBtn">Preview slides</button>
+          <button id="standaloneBtn">Download single HTML file</button>
+          <button id="zipBtn">Download deck folder (.zip)</button>
+        </div>
+
+        <p class="note" style="margin-top: 18px">
+          The single file opens by double-click. The folder holds
+          <code>slides.html</code>, <code>strings.json</code> (every translatable string,
+          with a stable ID) and <code>images/</code>; unzip it into <code>decks/</code> and
+          run <code>node tools/build-manifest.mjs</code> to publish it with the site.
+        </p>
+
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tabStrings" aria-selected="true">String table</button>
+          <button role="tab" id="tabHtml" aria-selected="false">Slides HTML</button>
+          <button role="tab" id="tabWarn" aria-selected="false">Needs a look</button>
+        </div>
+        <textarea id="out" spellcheck="false" readonly></textarea>
+        <ul class="warn hidden" id="warnings"></ul>
+      </section>
+
+      <section class="panel" id="unsupported" style="display: none">
+        <h2>This browser can't unzip in the page</h2>
+        <p class="note">
+          Converting needs <code>DecompressionStream('deflate-raw')</code>, which this
+          browser does not provide. Use a current Chrome, Edge, Firefox or Safari, or run
+          <code>node tools/pptx-to-html.mjs talk.pptx --slug my-talk</code> instead.
+        </p>
+      </section>
+
+      <section class="panel" id="needsServer" style="display: none">
+        <h2>This page needs a web server</h2>
+        <p class="note">
+          Browsers refuse to load JavaScript modules over <code>file://</code>.
+          From the <code>decks-as-code</code> folder:<br />
+          <code>python -m http.server 8931</code>, then open
+          <code>http://localhost:8931/convert.html</code>.
+        </p>
+      </section>
+    </div>
+
+    <script>
+      /* A classic script on purpose: the module below never runs on file://. */
+      if (window.location.protocol === 'file:') {
+        document.getElementById('needsServer').style.display = '';
+        document.getElementById('drop').style.display = 'none';
+      }
+    </script>
+
+    <div id="preview" class="hidden">
+      <div class="reveal"><div class="slides"></div></div>
+    </div>
+    <button id="closePreview" class="hidden">Close preview</button>
+
+    <!-- tools/build-site.mjs rewrites this single line to point at ./vendor,
+         producing a build with no external network calls. Keep it on one line. -->
+    <script>window.DECK_ASSET_BASE = 'https://cdn.jsdelivr.net/npm';</script>
+
+    <script type="module">
+      import { slugify, SLUG_PATTERN } from './tools/pptx-core.mjs';
+      import { pptxToHtml } from './tools/pptx-html.mjs';
+      import { readPptx, makeZip } from './tools/zip-tools.mjs';
+      import { assembleStandaloneHtml } from './tools/standalone-html.mjs';
+
+      const REVEAL_VERSION = '5.2.1';
+      const BASE = window.DECK_ASSET_BASE;
+      const $ = (id) => document.getElementById(id);
+      const encoder = new TextEncoder();
+
+      if (typeof DecompressionStream === 'undefined') {
+        $('unsupported').style.display = '';
+        $('drop').style.display = 'none';
+      }
+
+      const MIME = {
+        '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif',
+        '.svg': 'image/svg+xml', '.webp': 'image/webp', '.avif': 'image/avif', '.bmp': 'image/bmp',
+      };
+      const mimeOf = (name) => MIME[name.slice(name.lastIndexOf('.')).toLowerCase()] ?? 'application/octet-stream';
+
+      /** The file currently loaded: { name, files, result }. */
+      let current = null;
+      let tab = 'strings';
+
+      const setStatus = (text, kind = '') => {
+        $('status').textContent = text;
+        $('status').className = `status ${kind}`;
+      };
+      const escapeHtml = (s) => s.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]);
+
+      /* ------------------------------------------------------------ view -- */
+
+      function showTab(next) {
+        tab = next;
+        for (const [id, name] of [['tabStrings', 'strings'], ['tabHtml', 'html'], ['tabWarn', 'warn']]) {
+          $(id).setAttribute('aria-selected', String(name === tab));
+        }
+        $('out').classList.toggle('hidden', tab === 'warn');
+        $('warnings').classList.toggle('hidden', tab !== 'warn');
+        if (!current) return;
+        if (tab === 'strings') $('out').value = JSON.stringify(current.result.strings, null, 2);
+        else if (tab === 'html') $('out').value = current.result.html;
+        else {
+          $('warnings').innerHTML = current.result.warnings.length
+            ? current.result.warnings.map((w) => `<li>${escapeHtml(w)}</li>`).join('')
+            : '<li>Nothing flagged.</li>';
+        }
+      }
+
+      function render() {
+        const { result } = current;
+        $('resultTitle').textContent = current.name;
+        $('stats').innerHTML = [
+          [result.stats.slides, 'slides'],
+          [result.stats.strings, 'strings to translate'],
+          [result.stats.pictures, 'pictures'],
+          [result.warnings.length, 'to review'],
+        ].map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+        $('result').classList.remove('hidden');
+        showTab(tab);
+      }
+
+      function convert() {
+        current.result = pptxToHtml(current.files, {
+          slug: $('slug').value,
+          title: $('title').value || undefined,
+          author: $('author').value || undefined,
+          description: `Converted from ${current.name}.`,
+        });
+        render();
+      }
+
+      async function load(file) {
+        if (!file.name.toLowerCase().endsWith('.pptx')) {
+          setStatus('That is not a .pptx file.', 'error');
+          return;
+        }
+        setStatus(`Reading ${file.name}…`);
+        try {
+          const files = await readPptx(new Uint8Array(await file.arrayBuffer()));
+          current = { name: file.name, files };
+          const guess = slugify(file.name.replace(/\.pptx$/i, ''));
+          $('slug').value = guess;
+          const probe = pptxToHtml(files, { slug: guess, description: `Converted from ${file.name}.` });
+          $('title').value = probe.deck.title;
+          $('author').value = probe.deck.author;
+          current.result = probe;
+          render();
+          setStatus(`Converted ${probe.stats.slides} slides from ${file.name}.`, 'ok');
+        } catch (error) {
+          current = null;
+          $('result').classList.add('hidden');
+          setStatus(error.message, 'error');
+        }
+      }
+
+      /* ------------------------------------------------------- downloads -- */
+
+      function deckFiles() {
+        const deck = {
+          ...current.result.deck,
+          title: $('title').value || current.result.deck.title,
+          author: $('author').value,
+        };
+        const files = [
+          { name: 'slides.html', bytes: encoder.encode(current.result.html) },
+          { name: 'strings.json', bytes: encoder.encode(`${JSON.stringify(current.result.strings, null, 2)}\n`) },
+          { name: 'deck.json', bytes: encoder.encode(`${JSON.stringify(deck, null, 2)}\n`) },
+        ];
+        for (const image of current.result.images) {
+          files.push({ name: `images/${image.name}`, bytes: current.files.get(image.zipPath) });
+        }
+        return { files, deck };
+      }
+
+      function download(blob, name) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      const validSlug = () => {
+        const slug = $('slug').value || 'converted-deck';
+        if (SLUG_PATTERN.test(slug)) return slug;
+        setStatus('Folder name may use letters, digits, dot, dash and underscore only.', 'error');
+        return null;
+      };
+
+      $('zipBtn').addEventListener('click', () => {
+        const slug = validSlug();
+        if (!slug) return;
+        const { files } = deckFiles();
+        download(makeZip(files.map((f) => ({ ...f, name: `${slug}/${f.name}` }))), `${slug}.zip`);
+        setStatus(`Downloaded ${slug}.zip. Unzip it into decks/.`, 'ok');
+      });
+
+      const dataUri = (bytes, mime) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(new Blob([bytes], { type: mime }));
+      });
+
+      /** Swap each images/<name> reference for `urlFor(name)`, in src="" and url(). */
+      async function rewriteImages(html, urlFor) {
+        const cache = new Map();
+        const names = new Set([...html.matchAll(/(?:src="|url\()images\/([^")]+)/g)].map((m) => m[1]));
+        for (const name of names) {
+          const image = current.result.images.find((i) => i.name === name);
+          if (image) cache.set(name, await urlFor(image));
+        }
+        return html.replace(/((?:src="|url\())images\/([^")]+)/g, (m, head, name) => head + (cache.get(name) ?? `images/${name}`));
+      }
+
+      const fetchText = async (url) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Could not load ${url} (${res.status})`);
+        return res.text();
+      };
+
+      $('standaloneBtn').addEventListener('click', async () => {
+        const slug = validSlug();
+        if (!slug) return;
+        setStatus('Building single file…');
+        try {
+          const { deck } = deckFiles();
+          const [reveal, theme, revealJs, shared, pptx, i18n] = await Promise.all([
+            fetchText(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/reveal.css`),
+            fetchText(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/theme/${deck.theme || 'white'}.css`),
+            fetchText(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/reveal.js`),
+            fetchText('assets/theme.css'),
+            fetchText('assets/pptx-slide.css'),
+            fetchText('assets/deck-i18n.js'),
+          ]);
+          const images = {};
+          for (const image of current.result.images) {
+            images[image.name] = await dataUri(current.files.get(image.zipPath), mimeOf(image.name));
+          }
+          const html = assembleStandaloneHtml({
+            title: deck.title,
+            source: current.name,
+            lang: deck.lang,
+            canvas: deck.canvas,
+            slidesHtml: current.result.html,
+            images,
+            tables: {},
+            css: { reveal, theme, shared, pptx },
+            js: { reveal: revealJs, i18n },
+          });
+          download(new Blob([html], { type: 'text/html' }), `${slug}.html`);
+          setStatus(`Downloaded ${slug}.html (${(html.length / 1048576).toFixed(1)} MB). Double-click to open.`, 'ok');
+        } catch (error) {
+          setStatus(`Could not build the file: ${error.message}`, 'error');
+        }
+      });
+
+      /* --------------------------------------------------------- preview -- */
+
+      const loadCss = (href) => new Promise((resolve) => {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+        link.onload = link.onerror = () => resolve();
+        document.head.appendChild(link);
+      });
+      const loadScript = (src) => new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error(`Failed to load ${src}`));
+        document.head.appendChild(script);
+      });
+
+      let revealReady = false;
+      let previewUrls = [];
+
+      $('previewBtn').addEventListener('click', async () => {
+        if (!current) return;
+        setStatus('Building preview…');
+        try {
+          const { deck } = deckFiles();
+          if (!window.Reveal) {
+            await loadCss(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/reveal.css`);
+            await loadCss(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/theme/${deck.theme || 'white'}.css`);
+            await loadCss('assets/theme.css');
+            await loadCss('assets/pptx-slide.css');
+            await loadScript(`${BASE}/reveal.js@${REVEAL_VERSION}/dist/reveal.js`);
+            await loadScript('assets/deck-i18n.js');
+          }
+
+          previewUrls.forEach((u) => URL.revokeObjectURL(u));
+          previewUrls = [];
+          const html = await rewriteImages(current.result.html, (image) => {
+            const url = URL.createObjectURL(new Blob([current.files.get(image.zipPath)], { type: mimeOf(image.name) }));
+            previewUrls.push(url);
+            return url;
+          });
+          document.querySelector('#preview .slides').innerHTML = html;
+          $('preview').classList.remove('hidden');
+          $('closePreview').classList.remove('hidden');
+
+          const canvas = deck.canvas;
+          const config = {
+            hash: false, slideNumber: 'c/t', transition: 'none', width: canvas.width, height: canvas.height,
+            margin: 0, minScale: 0.2, maxScale: 3, center: false,
+          };
+          if (revealReady) { Reveal.configure(config); Reveal.sync(); } else { await Reveal.initialize(config); DeckI18n.autoFit(Reveal); revealReady = true; }
+          Reveal.slide(0);
+          Reveal.layout();
+          DeckI18n.refit(Reveal);
+          setStatus('');
+        } catch (error) {
+          setStatus(`Preview failed: ${error.message}`, 'error');
+        }
+      });
+
+      const closePreview = () => {
+        $('preview').classList.add('hidden');
+        $('closePreview').classList.add('hidden');
+      };
+      $('closePreview').addEventListener('click', closePreview);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !$('preview').classList.contains('hidden')) closePreview();
+      });
+
+      /* ---------------------------------------------------------- wiring -- */
+
+      const drop = $('drop');
+      drop.addEventListener('click', () => $('file').click());
+      $('file').addEventListener('change', (e) => e.target.files[0] && load(e.target.files[0]));
+      for (const type of ['dragenter', 'dragover']) drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.add('over'); });
+      for (const type of ['dragleave', 'drop']) drop.addEventListener(type, () => drop.classList.remove('over'));
+      drop.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file) load(file);
+      });
+
+      $('slug').addEventListener('input', () => {
+        const value = $('slug').value;
+        $('slug').style.borderColor = value && !SLUG_PATTERN.test(value) ? '#ff8a80' : '';
+      });
+      $('tabStrings').addEventListener('click', () => showTab('strings'));
+      $('tabHtml').addEventListener('click', () => showTab('html'));
+      $('tabWarn').addEventListener('click', () => showTab('warn'));
+    </script>
+  </body>
+</html>
