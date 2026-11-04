@@ -38,24 +38,33 @@ built `standalone/` files are exempt, since everything is inlined into them.
 decks-as-code/
 ├── index.html                 landing page, lists every deck
 ├── deck.html                  the player: deck.html?d=<slug>
+├── convert.html               .pptx to localizable HTML, in the browser
 ├── decks.json                 generated listing, don't hand-edit
-├── assets/theme.css           shared brand styling for all decks
+├── assets/                    theme.css (brand), pptx-slide.css (converted slides),
+│                              deck-i18n.js (language swap, fit-to-box)
+├── docs/string-table.md       the localization contract
 ├── tools/
 │   ├── build-manifest.mjs     regenerates decks.json
 │   ├── build-site.mjs         builds dist/: offline site plus single-file decks
-│   └── import-pptx.mjs        converts a .pptx into a deck folder
+│   ├── import-pptx.mjs        converts a .pptx into a Markdown deck folder
+│   ├── pptx-to-html.mjs       converts a .pptx into an HTML deck folder (pptx-html.mjs)
+│   ├── translate.mjs          translates a deck's strings.json with an LLM
+│   ├── translate-core.mjs     hashing, validation, batching, retry (used by translate)
+│   └── llm-provider.mjs       provider interface: copilot, openai-compatible, mock
 └── decks/
     └── <slug>/
         ├── slides.md          the deck. The only file you edit day to day.
         ├── deck.json          title, description, author, date, tags, theme
         └── images/            optional, referenced as ![](images/x.png)
+        (decks converted to HTML have slides.html and strings.json instead of slides.md)
 ```
 
 | URL | Serves |
 | --- | --- |
 | `/` | Landing page listing all decks |
 | `/deck.html?d=<slug>` | That deck, full screen |
-| `/decks/<slug>/deck.pdf` | PDF export, once built |
+| `/deck.html?d=<slug>&lang=de` | An HTML deck in a translation (needs `strings.de.json`) |
+| `/decks/<slug>/deck.pdf` | PDF export, once built (off by default) |
 
 ---
 
@@ -142,6 +151,85 @@ Options:
 
 ---
 
+## Convert a PowerPoint to localizable HTML
+
+A second path, for when the slides must look like the original and every word has to
+be translatable. Instead of Markdown, a `.pptx` becomes positioned HTML: one fixed
+canvas per slide, shapes placed where PowerPoint put them, and all text kept as real
+text.
+
+Open `convert.html` on the served site (or `node tools/pptx-to-html.mjs talk.pptx
+--slug my-talk`). It reads the file in your browser, never uploads it, and lets you:
+
+- **Preview** the slides, with speaker notes.
+- **Look through** the generated `slides.html` and the string table, and see what the
+  converter could not handle.
+- **Download** a single HTML file you can double-click, or the deck folder as a ZIP.
+
+The folder holds `slides.html`, `strings.json` and `images/`. `strings.json` lists
+every paragraph, speaker note and alt text under a stable ID, in the format described
+in [`docs/string-table.md`](docs/string-table.md); translations are `strings.<lang>.json`
+files in the same folder. A language picker appears in the corner of the deck (and the
+single-file version) when translations exist; `?lang=<code>` opens one directly.
+Longer translated text shrinks to fit its box (down to 60%); add `&review` to the
+address to outline boxes that still overflow.
+
+What is kept: every paragraph (including hidden-slide text and notes), bold, italic,
+underline, links, bullets and numbering, fonts and colors, positions, rotation, groups,
+pictures with cropping, tables, gradients, and the common shapes and connectors with
+arrowheads. SmartArt is rendered from its stored drawing when the file has one.
+
+What is not: text inside pictures (it cannot be translated), charts (shown as a
+placeholder), EMF/WMF pictures (browsers cannot draw them), animations, transitions,
+and shadows or other effects. Shapes with an unusual preset are drawn as rectangles.
+Everything the converter skipped or approximated is listed under "Needs a look".
+
+Code paragraphs (monospace text) stay on the slide but are left out of the string
+table, so nothing translates them.
+
+---
+
+## Translate a deck
+
+`tools/translate.mjs` translates a deck's string table (`decks/<slug>/strings.json`,
+see [`docs/string-table.md`](docs/string-table.md)) into `strings.<lang>.json` files.
+Node 18+, no dependencies.
+
+```powershell
+node tools\translate.mjs my-talk --to de,pt-BR,ar            # translate
+node tools\translate.mjs my-talk --to de --dry-run           # show what would change
+node tools\translate.mjs my-talk --to de --force             # retranslate everything
+node tools\translate.mjs my-talk --to de --provider mock     # offline fake, no LLM
+node --test                                                  # run the tests (no network)
+```
+
+- **Incremental.** Only strings that are missing or whose source text changed (the
+  `src` hash no longer matches) are sent to the model. `--force` redoes all of them.
+- **Validated.** Every translation must keep the same inline tags (in matching pairs),
+  keep `href` values, and be non-empty. A failing batch is retried once with the error
+  fed back; strings that still fail are skipped and listed, the file stays valid, and
+  the viewer falls back to the source text for them. Exit code `2` means "done, but
+  some strings were skipped"; re-run to retry them.
+- **Provider.** `--provider copilot` (default) runs the GitHub Copilot CLI in
+  non-interactive mode, so it uses the models in your Copilot subscription: no API key,
+  nothing to configure beyond signing in once by running `copilot`. Tools, MCP servers and
+  custom instructions are switched off, so the model can only answer. Optional:
+  `--model <name>` (otherwise the CLI's default), `LLM_REASONING_EFFORT` (default `low`),
+  `COPILOT_BIN` if `copilot` is not on your PATH. The five-slide sample takes under a
+  minute per language; a 50-slide deck takes a few minutes.
+  `--provider openai` talks to any OpenAI-compatible
+  `/chat/completions` endpoint. Configure it with environment variables (the key is
+  never a flag, never logged, never written): `LLM_API_KEY` (or `OPENAI_API_KEY`),
+  `LLM_MODEL` (or `--model`), and optionally `LLM_BASE_URL` (or `--base-url`; default
+  `https://api.openai.com/v1`). For Azure OpenAI / Foundry use the
+  `https://<resource>.openai.azure.com/openai/v1` base URL, the deployment name as the
+  model, and `LLM_AUTH_HEADER=api-key`. Set `LLM_JSON_MODE=off` if a host rejects
+  `response_format`. 429s honour `retry-after`. Providers live in
+  `tools/llm-provider.mjs`; adding one means returning `{ name, complete({messages}) }`.
+  GitHub Models was retired on 2026-07-30, so it is not supported.
+
+---
+
 ## Writing slides
 
 `slides.md` is ordinary Markdown with three separator conventions:
@@ -181,8 +269,12 @@ from your file system and they now say so rather than failing silently. To run t
 whole site locally, serve `dist/` on a port as shown under "Run it locally".
 
 `.github/workflows/publish-decks.yml` runs on every push and pull request. It builds
-`dist/`, exports a PDF per deck, and uploads two artifacts: `deck-standalone` and
-`deck-pdfs`. On `main` it also deploys `dist/` to GitHub Pages.
+`dist/` and uploads the `deck-standalone` artifact. On `main` it also deploys `dist/`
+to GitHub Pages.
+
+**PDF export is dormant.** The workflow no longer exports PDFs on push or pull
+request. The steps are still there: run the workflow manually (Actions → Publish
+decks → Run workflow) and tick `export_pdfs` to get a `deck-pdfs` artifact.
 
 **GitHub Pages.** This repo is public, so Pages is enabled and every push to `main`
 republishes <https://ivorb.github.io/decks-as-code/>. Settings → Pages → Source is set

@@ -64,23 +64,31 @@ async function buildManifest() {
     }
 
     const deckDir = join(DECKS_DIR, slug);
+    const hasHtml = await exists(join(deckDir, 'slides.html'));
     const slidesPath = join(deckDir, 'slides.md');
-    if (!(await exists(slidesPath))) {
-      warnings.push(`skipped "${slug}": no slides.md`);
+    if (!hasHtml && !(await exists(slidesPath))) {
+      warnings.push(`skipped "${slug}": no slides.md or slides.html`);
       continue;
     }
 
-    const slides = await readFile(slidesPath, 'utf8');
     const meta = await readMeta(deckDir, slug);
+    const title = meta.title || (hasHtml ? slug : titleFromSlides(await readFile(slidesPath, 'utf8'), slug));
+
+    // Translations sit next to slides.html as strings.<lang>.json; the deck page offers them in a picker.
+    const languages = hasHtml
+      ? (await readdir(deckDir)).map((f) => /^strings\.([A-Za-z0-9-]+)\.json$/.exec(f)?.[1]).filter(Boolean).sort()
+      : [];
 
     decks.push({
       slug,
-      title: meta.title || titleFromSlides(slides, slug),
+      title,
       description: meta.description || '',
       author: meta.author || '',
       date: meta.date || '',
       tags: Array.isArray(meta.tags) ? meta.tags : [],
       theme: meta.theme || 'night',
+      ...(hasHtml ? { format: 'html' } : {}),
+      ...(languages.length ? { languages } : {}),
     });
   }
 

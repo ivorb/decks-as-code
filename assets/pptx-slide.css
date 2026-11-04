@@ -1,0 +1,168 @@
+/*
+ * Styling for slides converted from PowerPoint (decks with "format": "html").
+ * Everything is scoped under .pptx-canvas so it can sit inside a Reveal theme
+ * without picking up the theme's margins, fonts or table styling.
+ */
+
+.reveal .slides > section.pptx-slide {
+  padding: 0 !important;
+  text-align: left;
+}
+
+.reveal .pptx-canvas {
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+  font-size: 16px;
+  line-height: 1.2;
+  color: #000;
+  font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  text-shadow: none;
+  text-transform: none;
+}
+
+.reveal .pptx-canvas svg.defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.reveal .pptx-canvas .sh,
+.reveal .pptx-canvas .pic,
+.reveal .pptx-canvas .cx,
+.reveal .pptx-canvas .tb,
+.reveal .pptx-canvas .miss {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+/* Fill and outline layers grow with the text box, so long translations keep their card. */
+.reveal .pptx-canvas .bg,
+.reveal .pptx-canvas .ln {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+}
+
+.reveal .pptx-canvas .ln {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.reveal .pptx-canvas .tx {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.reveal .pptx-canvas p {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  text-align: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.reveal .pptx-canvas .tx > p:first-child {
+  margin-top: 0 !important;
+}
+
+.reveal .pptx-canvas p.e::before {
+  content: '\200b';
+}
+
+.reveal .pptx-canvas p[data-bu]::before {
+  content: attr(data-bu);
+  position: absolute;
+  left: var(--bl, 0);
+  color: var(--buc, inherit);
+  font-size: var(--bus, 100%);
+}
+
+.reveal .pptx-canvas a {
+  color: var(--hl, #0563c1);
+  text-decoration: underline;
+}
+
+.reveal .pptx-canvas code {
+  font-family: Consolas, 'Cascadia Mono', Menlo, monospace;
+  font-size: inherit;
+  padding: 0;
+  background: none;
+  color: inherit;
+}
+
+.reveal .pptx-canvas .pic img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.reveal .pptx-canvas .miss {
+  border: 2px dashed #b0b0b0;
+  background: repeating-linear-gradient(45deg, #f4f4f4, #f4f4f4 8px, #ececec 8px, #ececec 16px);
+}
+
+.reveal .pptx-canvas table.tb {
+  margin: 0;
+  border-collapse: collapse;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.reveal .pptx-canvas table.tb td {
+  text-align: left;
+  font-size: inherit;
+  border: 0;
+  overflow-wrap: break-word;
+}
+
+.reveal .pptx-canvas aside.notes {
+  display: none;
+}
+
+html.deck-review .reveal .pptx-canvas .sh[data-overflow] {
+  outline: 2px dashed #e5484d;
+}
+
+/* Language picker, shown when a deck has translations. */
+.deck-lang {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 30;
+}
+
+.deck-lang select {
+  font: 500 14px/1.2 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #f2f4f8;
+  background: rgba(16, 19, 26, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.deck-lang select:hover,
+.deck-lang select:focus {
+  border-color: #4da3ff;
+  outline: none;
+}
+
+@media print {
+  .deck-lang { display: none; }
+}
